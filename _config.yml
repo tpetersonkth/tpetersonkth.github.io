@@ -13,7 +13,7 @@
 # you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
-title: CVE Analyzes
+title: CVE Analyses
 email: thomas_pierre_elis@hotmail.com
 description: This is a cyber security blog where CVEs are studied.
 baseurl: "" # the subpath of your site, e.g. /blog
