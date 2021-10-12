@@ -14,8 +14,9 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 title: CVE Analyses
+author: Thomas
 email: 
-description: This is a cyber security blog where CVEs are studied.
+description: Welcome to a blog where we aim to study security issues whose solutions aren't trivial to find online.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  tpetersonkth
