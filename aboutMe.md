@@ -1,6 +1,6 @@
 ---
 layout: page
-title: About the Author
+title: About Me
 permalink: /about/me
 ---
 
