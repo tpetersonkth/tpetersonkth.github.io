@@ -14,7 +14,7 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 title: CVE Analyses
-author: Thomas
+author: Thomas Peterson
 email: 
 description: Welcome to a blog where we aim to study security issues whose solutions aren't trivial to find online.
 baseurl: "" # the subpath of your site, e.g. /blog
