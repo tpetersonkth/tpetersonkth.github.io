@@ -19,6 +19,7 @@ description: This is a cyber security blog where CVEs are studied.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  tpetersonkth
+linkedin_username: thomas-peterson-sweden
 
 # Build settings
 markdown: kramdown
