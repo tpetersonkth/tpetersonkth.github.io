@@ -3,7 +3,7 @@
 
   <div class="wrapper">
 
-    <h2 class="footer-heading">{{ site.title2 | escape }}</h2>
+    <h2 class="footer-heading">{{ site.author | escape }}</h2>
 
     <div class="footer-col-wrapper">
       <div class="footer-col footer-col-1">
@@ -12,7 +12,7 @@
             {%- if site.author -%}
               {{ site.author | escape }}
             {%- else -%}
-              {{ site.title3 | escape }}
+              {{ site.copyright | escape }}
             {%- endif -%}
             </li>
             {%- if site.email -%}
