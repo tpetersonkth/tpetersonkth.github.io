@@ -22,7 +22,7 @@ url: "" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  tpetersonkth
 linkedin_username: thomas-peterson-sweden
 copyright: "© 2021. All rights reserved."
-header_pages: pages
+header_pages: "pages"
 
 # Build settings
 markdown: kramdown
