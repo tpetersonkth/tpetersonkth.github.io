@@ -23,7 +23,8 @@ github_username:  tpetersonkth
 linkedin_username: thomas-peterson-sweden
 copyright: "© 2021. All rights reserved."
 header_pages: 
- - aboutMe.html 
+ - about.md
+ - aboutMe.md
 
 # Build settings
 markdown: kramdown
