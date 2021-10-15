@@ -34,7 +34,7 @@ body {
  * Set `margin-bottom` to maintain vertical rhythm
  */
 h1, h2, h3, h4, h5, h6,
-p, blockquote, pre,
+p, blockquote,
 ul, ol, dl, figure,
 %vertical-rhythm {
   margin-bottom: $spacing-unit / 2;
@@ -230,12 +230,11 @@ pre {
  * Tables
  */
 table {
-  margin-bottom: $spacing-unit;
+  margin-bottom: 0px;
   width: 100%;
   text-align: $table-text-align;
   color: lighten($text-color, 18%);
   border-collapse: collapse;
-  border: 1px solid $grey-color-light;
   tr {
     &:nth-child(even) {
       background-color: lighten($grey-color-light, 6%);
@@ -250,6 +249,11 @@ table {
     border-bottom-color: darken($grey-color-light, 12%);
   }
   td {
-    border: 1px solid $grey-color-light;
+    border-left: 1px solid $grey-color-light;
+
+    &:nth-child(1) { //Ensure that the line numbers column is not to wide..
+    width: 10px;
+    }
   }
 }
+
