@@ -228,7 +228,11 @@
 }
 
 .post-tag:hover::after {
-   border-left-color: crimson; 
+  border-left-color: crimson; 
+}
+
+.post-tag:visited{
+  color: #828282; //Overrides the default blue color when a link has been visited
 }
 
 .post-link {
