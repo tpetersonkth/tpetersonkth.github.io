@@ -73,13 +73,124 @@ sudo npm i rimrafall to attempt to install the custom node module as a root user
 
 
 # Code analysis
-## User-Agent filtering
+{:refdef: style="text-align: center;"}
+![files](/assets/2021-10-17-HTB-Holidays-Source-Code-Analysis/files.png)
+{: refdef}
+
+## User-Agent Filtering
+{% highlight Javascript linenos %}
+
+{% endhighlight %}
+
 
 ## SQL Injection Vulnerability
 
+{% highlight Javascript linenos %}
+var db = new sqlite3.Database('hex.db');
+{% endhighlight %}
+
+{% highlight Javascript linenos %}
+
+module.exports = function(callback) {
+  async.waterfall([
+    function(cb) {
+      db.run('PRAGMA journal_mode = OFF;', cb);
+    },
+    function(cb) {
+      db.run('SELECT * FROM users', function(err) {
+        if (!err) return cb('Already setup');
+
+        return cb();
+      });
+    },
+{% endhighlight %}
+
+Note line x, where the req.body.username parameter is placed into the query string. This query parameter is then sent to the the database by using the `scope.db.get` function at line x.
+
+`SELECT id, username, password, active FROM users WHERE (active=1 AND (username = "[username]"))` where [username] is the username supplied in the body of the request
+
+If we let [username] be `")) -- sleep(1)`, we can force a delay to verify that we have remote code execution on the machine. This works since the query becomes the query below. Note that any characters after the comment character `--` won't be interpreted as part of the query. At this point, data can be exfiltrated using blind SQLI attacks. TODO: Check
+
+`SELECT id, username, password, active FROM users WHERE (active=1 AND (username = " ")) -- "))`
+
+{% highlight Javascript linenos %}
+scope.router.post('/login', function(req, res) {
+  if (req.body.username == 'admin' && req.body.password == 'myvoiceismypassport') {
+    req.session.username = 'admin';
+    req.session.admin = true;
+    res.redirect('/admin');
+  } else {
+    var query = 'SELECT id, username, password, active FROM users WHERE (active=1 AND (username = "' + req.body.username +'"))';
+    var queryStart = +new Date();
+
+    scope.db.get(query, function(err, row) {
+      var queryEnd = +new Date();
+      var queryTime = queryEnd - queryStart;
+      if (err) return res.render('login.hbs', { internalError: err, publicError: 'Error Occurred', query: query, queryTime: queryTime });
+      if (!row) return res.render('login.hbs', { publicError: 'Invalid User', query: query, queryTime: queryTime });
+      if (row.password == crypto.createHash('md5').update(req.body.password).digest('hex')) {
+        req.session.username = row.username;
+        res.redirect('/agent');
+      } else {
+        res.render('login.hbs', { username: row.username, publicError: 'Incorrect Password', query: query, queryTime: queryTime });
+      }
+    });
+  }
+});
+{% endhighlight %}
+
 ## XSS Vulnerability
+{% highlight Javascript linenos %}
+var xss = require('xss');
+var xssFilter = new xss.FilterXSS({
+  whiteList: {
+    img: ['src']
+  },
+  onTagAttr: function (tag, name, value, isWhiteAttr) {
+    if (name === 'src' && isWhiteAttr) return name + '=' + value.replace(/["' ]/g, '') + '';
+    return null;
+  }
+});
+{% endhighlight %}
 
-## Command injection vulnerability
+## Command Injection Vulnerability
+
+The `scope.router.get` function is used to define an endpoint. In this particular case, line 1 states that the endpoint "/admin/exports" can be reached by get requests and that any such requests should be handled by the function which is defined on line 2 to 13.
+
+The regex `/[^a-z0-9& \/]/g` matches everything that is not an alphanumeric character, the `&` character, the space character and the forward slash `/` character. Anything that is matched will be subsituted for the empty string `''`. In other words, any character outside of these characters, will be removed. In addition, the server will respond with a "500 Internal server error" error message. 
+
+Once the characters have passed the filter, they go into x
+
+`sqlite3 hex.db SELECT * FROM [userInput]` where [userInput] are the characters the user submitted. This assumes that all characters passed the white list
+
+`sqlite3 hex.db SELECT * FROM table && sleep 2`
+
+From file "./app/setup/router.js"
+{% highlight Javascript linenos %}
+scope.router.get('/admin/export', function(req, res) {//Command injection location
+  console.log('Admin Export', req.query)
+  if (!req.session.admin) return res.redirect('/login');
+  var filteredTable = req.query.table.replace(/[^a-z0-9& \/]/g, '')//Filter
+  if (filteredTable != req.query.table) return res.status(500).send('Invalid table name - only characters in the range of [a-z0-9&\\s\\/] are allowed');
+
+  exec('sqlite3 hex.db SELECT\\ *\\ FROM\\ ' + filteredTable, function(err, stdout, stderr) {
+    res.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    res.header('Expires', '-1');
+    res.header('Pragma', 'no-cache');
+    res.attachment('export-' + req.query.table + '-' + (+new Date()));
+    res.send(stdout);
+  });
+});
+{% endhighlight %}
 
 
+Definition of the `exec` function.
 
+{% highlight Javascript linenos %}
+var exec = require('child_process').exec;
+{% endhighlight %}
+
+<!---
+# Furher Readingo
+Checkout: automating hackthebox holidays
+-->
