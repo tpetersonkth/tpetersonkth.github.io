@@ -13,7 +13,7 @@
 # you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
-title: Home
+title: tpetersonkth
 author: Thomas Peterson
 email: 
 description: Welcome to a blog where we aim to study security issues whose solutions aren't trivial to find online.
