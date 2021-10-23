@@ -12,7 +12,8 @@ layout: default
         
       </time>
       <!--•-->      
-      {%- for tag in page.tags -%}
+      {% assign sorted_tags = page.tags | sort %}
+      {%- for tag in sorted_tags -%}
       <a class="post-tag" href="/tags#{{tag | escape}}">{{tag | escape}}</a>
       {%- endfor -%}
       </p>
