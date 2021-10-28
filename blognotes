@@ -1,3 +1,6 @@
 --Video--
 Change codec: ffmpeg -i pythonListenerDemo2.mp4 -vcodec libx264 -acodec aac output.mp4
 Change chroma subsampling: ffmpeg -i output.mp4 -vf scale=w=-1:h=-1:interl=1 -pix_fmt yuv420p output2.mp4
+
+--local debugging--
+jekyll serve _config.yml --drafts --future
