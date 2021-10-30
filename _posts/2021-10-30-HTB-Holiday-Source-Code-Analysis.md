@@ -1,14 +1,14 @@
 ---
 layout: post
-title:  "Hack The Box - Holidays - Source Code Analysis"
+title:  "Hack The Box - Holiday - Source Code Analysis"
 date:   2021-10-30 7:00:00 +0200
 tags: ["Hack The Box","OSWE"]
 ---
 
 # Introduction
-The hack the box machine "Holidays" is a hard machine which requires knowledge in the areas of user agent filtering, SQL injections, XSS filter evasion, command injection and NodeJS packages. In this post, we study the coding mistakes behind the vulnerabilites and how to remediate them. Spotting vulnerabilties through code reviews is a very useful skill when performing white-box penetration testing, hence why writeups like this one might be useful!
+The hack the box machine "Holiday" is a hard machine which requires knowledge in the areas of user agent filtering, SQL injections, XSS filter evasion, command injection and NodeJS packages. In this post, we study the coding mistakes behind the vulnerabilites and how to remediate them. Spotting vulnerabilties through code reviews is a very useful skill when performing white-box penetration testing, hence why writeups like this one might be useful!
 
-<img style="Width:550px;" src="/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/card.png" alt="HolidayCard">
+<img style="Width:550px;" src="/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/card.png" alt="HolidayCard">
 
 The next two sections provide an overview of the exploitation process followed by a code analysis to identify the vulnerabilites in the source code. Feel free to skip or skim the next section if you already know how to exploit this particular Hack The Box machine. 
 
@@ -29,7 +29,7 @@ sqlmap -r linux.req --level=5 --risk=3 -T users --dump -threads 10
 
 From the output of the command, it is possible to obtain the username "RickA" and password hash "fdc8cd4cff2c19e0d1022e78481ddf36". This password hash can then be cracked with an online cracking tool such as [crackstation](https://crackstation.net/) to obtain the password "nevergonnagiveyouup". Then, it is possible to login with these credentials at the login panel at `http://10.10.10.25:8000/login`. After logging in, we are redirected to `http://10.10.10.25:8000/agent` where we can see different bookings. Clicking on a booking leads us to the page `http://10.10.10.25:8000/vac/[ID]` where `[ID]` is the id of the selected booking. On this page, we can click the "Notes" tab to reach the page shown below, where we can add a note to the selected booking. In addition, there is a text message stating that all notes has to be approved my an administrator.
 
-![addNote](/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/addNote.png)
+![addNote](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/addNote.png)
 
 At this point, one could suspect that a stored XSS vulnerability could be present since submitted notes might not be filtered appropriately. It is, however, not easy to verify this since we can not see the notes we submit until an administrator reviews them. However, after playing around a bit with various payloads and filter evasion techniques, it is possible to verify that an XSS vulnerability exists by tricking the administrators browser to perform a request to our host. More specifically, it is possible to inject JavaScript code in the administrators browser by abusing an `img` tag while representing the JavaScript payload with character codes. The template below can be used for creating notes which execute JavaScript in the administrators browser. Note that `[payload]` is a sequence of comma separated integers which result in a JavaScript payload when converted to a string using [UTF-16](https://en.wikipedia.org/wiki/UTF-16).
 
@@ -61,7 +61,7 @@ The next step is to start a web server by executing
 
 We can then proceed to copy the base64 encoded content from the web server output and putting it in a file named "x.b64". Then, we simply execute the command `cat x.b64 | base64 -d`, retrieve the cookie named "connect.sid" from the output of the command, place it in our browser session and navigate to `http://10.10.10.25:8000/admin`. At this point, we have hijacked the administrators session and navigating to the URL thus leads us to the page shown below. 
 
-![export](/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/export.png)
+![export](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/export.png)
 
 When logged in as an administrator, there is a possiblity to export bookings or notes by pushing the buttons at the bottom of the page shown above. Pushing one of the buttons sends a `GET` requests to the "/admin/export" endpoint which includes a table name in a parameter named "table". After trying to send a variety of URL encoded special characters through this parameter, it is possible to deduce that the value of the `table` parameter is placed in a bash command which is executed. However, there is a filter in place which only allows for certain characters. One of the characters is the ampersand character `&` which can be used to execute any bash commands which can pass the filter.
 
@@ -79,7 +79,7 @@ http://10.10.10.25:8000/admin/export?table=x%26bash+rs
 
 Once these two URLs have been visited, the netcat listener receives a connection from the target and we are greeted with a bash prompt, as can be seen below.
 
-![rce](/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/rce.png)
+![rce](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/rce.png)
 
 The next step is to perform a privilege escalation to get code execution as `root`. The privilege escalation can be performed by abusing sudo rights on npm. By executing `sudo -l`, it is possible to see the line `(ALL) NOPASSWD: /usr/bin/npm i *` which means that we can install arbitrary NodeJS packages with root privileges. This could be dangerous as it is possible install a NodeJS package which executes a set of bash commands before the installation process begins. 
 
@@ -98,7 +98,7 @@ To create such a package, we execute the command `mkdir privescPackage` and crea
 
 Next, we simply attempt to install the package using the command `sudo npm i privescPackage --unsafe`. Shortly after executing the command, we acquire a shell on the target in the context of the `root` user, as can be seen in the image below
 
-![root](/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/root.png)
+![root](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/root.png)
 
 <!-- echo 'ewogICJuYW1lIjogInByaXZlc2NQYWNrYWdlIiwKICAidmVyc2lvbiI6ICIxLjAuMCIsCiAgIm1haW4iOiAiaW5kZXguanMiLAogICJzY3JpcHRzIjogewogICAgInByZWluc3RhbGwiOiAiL2Jpbi9iYXNoIC1pIgogIH0KfQo=' | base64 -d > ./privescPackage/package.json 
 echo 'bW9kdWxlLmV4cG9ydHMgPSAiVGhpcyBzdHJpbmcgZG9lcyBub3QgbWF0dGVyIjsK' | base64 -d > ./privescPackage/index.js
@@ -112,7 +112,7 @@ https://docs.npmjs.com/cli/v7/configuring-npm/package-json#name
 # Code Analysis
 To get started with the code analysis, I started by downloading the code from the machine using the `scp` command. More specifically, I changed the password of the `root` user to "root" by executing `passwd` and submitting the new password. Then, I downloaded the folder `/home/algernon/app` by executing `scp -r root@10.10.10.25:/home/algernon/app /tmp/app` and typing the password "root". 
 
-![files](/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/files.png)
+![files](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/files.png)
 
 After downloading the folder, I opened it in the text editor VSCode. This showed me the files which are visible in the image above. The folder had a file named "package.json" which stated that the main file was named "index.js". As such, this file became the starting point for the analysis.
 
@@ -298,9 +298,9 @@ this._OS = {
 
 This means that we should be able to send a request with the user agent set to "cros" to set the `isDesktop` variable to `True` and reach the login page. The pictures below show such a request and the corresponding response headers in burp. As can be seen at the top of the response, the status code is `200 OK`, meaning that we succesfully passed the User Agent filter.
 
-![ua1](/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/ua1.png)
+![ua1](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/ua1.png)
 
-![ua2](/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/ua2.png)
+![ua2](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/ua2.png)
 
 If this code was present in a real code base, security professionals would likely have recommended the developers to not rely on the `User-Agent` header for access control since the `User-Agent` header can be modified by the end user.
 
@@ -363,7 +363,7 @@ If we let `[username]` be `") OR HEX(RANDOMBLOB(100000000)) OR ("x`, we can forc
 
 `SELECT id, username, password, active FROM users WHERE (active=1 AND (username = "") OR HEX(RANDOMBLOB(100000000)) OR ("x"))` 
 
-![delay](/assets/2021-10-30-HTB-Holidays-Source-Code-Analysis/delay.png)
+![delay](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/delay.png)
 
 It can be validated that this payload works by studing the "Time Total" field in the output of the `curl` command shown above. At this point, data can be exfiltrated through time-based blind SQL injection attacks, either manually or automatically using automated tools like sqlmap. 
 
@@ -472,7 +472,7 @@ The crucial mistake here is that the special character `&` is allowed through th
 
 <!---
 # Furher Reading
-Checkout: automating hackthebox holidays
+Checkout: automating hackthebox Holiday
 -->
 
 
