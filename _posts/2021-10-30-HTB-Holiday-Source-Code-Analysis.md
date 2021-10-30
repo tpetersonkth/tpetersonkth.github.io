@@ -365,7 +365,7 @@ If we let `[username]` be `") OR HEX(RANDOMBLOB(100000000)) OR ("x`, we can forc
 
 ![delay](/assets/2021-10-30-HTB-Holiday-Source-Code-Analysis/delay.png)
 
-It can be validated that this payload works by studing the "Time Total" field in the output of the `curl` command shown above. At this point, data can be exfiltrated through time-based blind SQL injection attacks, either manually or automatically using automated tools like sqlmap. 
+It can be validated that this payload works by studying the "Time Total" field in the output of the `curl` command shown above. At this point, data can be exfiltrated through time-based blind SQL injection attacks, either manually or automatically using automated tools like sqlmap. 
 
 To prevent SQL Injection vulnerabilities, the general recommendation is to use prepared statements. It is also, normally, strongly recommended to always filter user supplied input using a white list of allowed characters. This is important since it prevents special characters from being interpreted in dangerous ways.
 
