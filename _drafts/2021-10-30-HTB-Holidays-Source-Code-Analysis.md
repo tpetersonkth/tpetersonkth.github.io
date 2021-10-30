@@ -12,7 +12,9 @@ The hack the box machine "Holidays" is a hard machine which requires knowledge i
 
 The next two sections provide an overview of the exploitation process followed by a code analysis to identify the vulnerabilites in the source code. Feel free to skip or skim the next section if you already know how to exploit this particular Hack The Box machine. 
 
+<section id="overview-of-the-exploitation"></section>
 # Overview of the Exploitation
+
 The first step is to scan the host for open ports. This can be done using `nmap` by executing a command like `nmap -p- -sS -sC 10.10.10.25` which scans for all potentially open ports using a SYN scan followed by a version scan and script scan on the open ports. From the results, it is possible to see that port `22` and `8000` are open and that ssh and HTTP are running on these ports. The next step is to bruteforce for directories or files on the web application. Depending on the user agent, one might get different results. More specifically, some user agents result in a `200 OK` while others result in a `404 Not Found`. One of the user agents that works is "Linux". As such, the command below can be used to enumerate web pages and find a login panel at `http://10.10.10.25:8000/login`.
 
 {% highlight none linenos %}
