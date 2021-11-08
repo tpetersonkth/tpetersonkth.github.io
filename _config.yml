@@ -18,7 +18,7 @@ author: Thomas Peterson
 email: 
 description: Welcome to a blog where we aim to study security issues whose solutions aren't trivial to find online.
 baseurl: "" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
+url: "https://tpetersonkth.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  tpetersonkth
 linkedin_username: thomas-peterson-sweden
 copyright: "© 2021. All rights reserved."
