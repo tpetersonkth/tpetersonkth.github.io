@@ -31,7 +31,7 @@ markdown: kramdown
 theme: minima
 plugins:
   - jekyll-feed
-
+  - jekyll-sitemap
 # Google Analytics
 google_analytics: G-7MWB4ZTRSS
 
