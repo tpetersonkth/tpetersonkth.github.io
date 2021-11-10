@@ -1,13 +1,13 @@
 ---
 layout: post
-title:  "Hack The Box - Popcorn - Writeup"
+title:  "Hack The Box - Falafel - Writeup"
 date:   2000-01-01 07:00:00 +0200
 tags: ["Hack The Box","OSWE"]
 ---
-{% assign imgDir="HTB-Popcorn-Writeup" %}
+{% assign imgDir="HTB-Falafel-Writeup" %}
 
 # Introduction
-The hack the box machine "Popcorn" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of 
+The hack the box machine "Falafel" is a Hard machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of arbitrary file uploads, PHP comparisions
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="BlockyCard">
 

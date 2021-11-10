@@ -1,13 +1,13 @@
 ---
 layout: post
-title:  "Hack The Box - Popcorn - Writeup"
+title:  "Hack The Box - Json - Writeup"
 date:   2000-01-01 07:00:00 +0200
 tags: ["Hack The Box","OSWE"]
 ---
-{% assign imgDir="HTB-Popcorn-Writeup" %}
+{% assign imgDir="HTB-Json-Writeup" %}
 
 # Introduction
-The hack the box machine "Popcorn" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of 
+The hack the box machine "Json" is a Medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of deserializtion
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="BlockyCard">
 
