@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Celestial - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2021-11-13 07:00:00 +0200
 tags: ["Hack The Box","OSWE"]
 ---
-{% assign imgDir="HTB-Celestial-Writeup" %}
+{% assign imgDir="2021-11-13-HTB-Celestial-Writeup" %}
 
 # Introduction
 The hack the box machine "Celestial" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of NodeJS deserialization and cronjobs. The most challenging part, though, is the deserialization part, which is probably why the machine is categorized as medium rather than easy.
