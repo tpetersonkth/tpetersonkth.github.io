@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Hack The Box - Json - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2021-11-27 07:00:00 +0200
 tags: ["Hack The Box","OSWE"]
 ---
 {% assign imgDir="HTB-Json-Writeup" %}
