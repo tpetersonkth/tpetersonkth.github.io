@@ -7,9 +7,9 @@ tags: ["Hack The Box","OSWE"]
 {% assign imgDir="HTB-Falafel-Writeup" %}
 
 # Introduction
-The hack the box machine "Falafel" is a Hard machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of arbitrary file uploads, PHP comparisions
+The hack the box machine "Falafel" is a hard machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of arbitrary file uploads, PHP comparisions
 
-<img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="BlockyCard">
+<img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
 By enumerating the target, it is possible to discover 
 
