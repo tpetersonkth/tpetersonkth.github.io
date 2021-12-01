@@ -7,11 +7,13 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Delivery-Writeup" %}
 
 # Introduction
-The hack the box machine "Delivery" is an easy machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of password cracking.
+The hack the box machine "Delivery" is an easy machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of basic web enumeration, [business logic vulnerabilities](https://portswigger.net/web-security/logic-flaws) and rule-based password cracking. What makes this machine particularly interesting is that hints are provided for the `root` user's password, meaning that one does not require a password hash to crack this password. Instead, automatic password guesses can be performed by abusing the `su` command.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
-By enumerating the target, it is possible to discover two web applicatoin. These are vulnerable to the [ticket trick]() vulnerability.
+By enumerating the target, it is possible to discover two web applications. One of the web applications consists of a help desk website where anyone can create an account and a ticket. An email is created for each ticket and this email belongs to the domain "delivery.htb". Information can then be added to a ticket by emailing its corresponding email. However, the other web application allows any one with a "delivery.htb" email to sign up and access an internal chat.
+
+After signing up with a ticket email and verifying it through a verification link sent to the ticket which corresponds to the email address, it is possible to find SSH credentials in the internal chat. In addition, the chat contains the information that many users' passwords are variations of the string 'PleaseSubscribe!'. It is possible to generate variations of this string using hashcat's rule engine and then guess the `root` user's password using the generated list of passwords and the tool [sucrack](https://github.com/hemp3l/sucrack).
 
 # Exploitation
 We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.222`. The `-sS` `-sC` and `-sV` flags instructs nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that port 22, 80 and 8065 where identified as open. The first port is SSH while the other two are two web applications communicating over HTTP.
@@ -77,24 +79,24 @@ If we go back to the ticket information page and refresh it, we can see that the
 
 ![verificationLink](/assets/{{ imgDir }}/verificationLink.png)
 <!-- http://delivery.htb:8065/do_verify_email?token=7pyy8jp3eumdj1s6xnki8owk1a97puwow5f4s63jg1ai4yts5xpoe9tkgmz4aasi&email=6062591%40delivery.htb -->
-If we visit the verification link, we reach the page shown above which tells us that the email was successfully verified. We can now log in with the password "Testing123!" which we set earlier. Once we have pressed the "Sign in" button,. This makes us reach a page where we can create a new Team or join an existing one. Since our email is part of the "delivery.htb" domain, we are allowed to join the internal team for "delivery.htb".
+If we visit the verification link, we reach the page shown above which tells us that the email was successfully verified. We can now log in with the password "Testing123!" which we set earlier. Once we have pressed the "Sign in" button, we reach a page where we can create a new Team or join an existing one. Since our email is part of the "delivery.htb" domain, we are allowed to join the internal team for "delivery.htb".
 
 ![selectTeam](/assets/{{ imgDir }}/selectTeam.png)
 
-We press internal, then skip tutorial
+We select the "Internal" team and then press "Skip tutorial" on the next page.
 
 ![skipTutorial](/assets/{{ imgDir }}/skipTutorial.png)
 
 ![internalChat](/assets/{{ imgDir }}/internalChat.png)
 
+After pressing "Skip tutorial", we reach an internal chat. From the chat conversation, we obtain the username `maildeliverer` and password `Youve_G0t_Mail!`. We also get to know that the users' passwords are often some variation of the string "PleaseSubscribe!" and that it should be possible to crack these passwords using hashcat's rule engine.
+
 ![ssh](/assets/{{ imgDir }}/ssh.png)
 
-We get the credentials maildeliverer:Youve_G0t_Mail!. We also get to know that the root user password is some variant of "PleaseSubscribe!" and that it should be possible to generate the password using hashcats rule engine. We can try to log in with these credentials over SSH. As shown above, this works and we get a shell as the `maildeliverer` user!
-
-
+We can try to log in over SSH with the credentials we found in the chat. As shown above, this works and we get a shell as the `maildeliverer` user! The next step is to crack the `root` user's password to get a root shell.
 
 # Privilege Escalation
-We start by generating passwords based on the string 'PleaseSubscribe!' which we found earlier. This can be done using hashcat by executing `echo PleaseSubscribe! | hashcat -r /usr/share/hashcat/rules/best64.rule --stdout > passwords`. This command uses hashcats rule engine to mutate the string 'PleaseSubscribe!' into similar strings. The `-r` flag is used to specify a `.rule` file which is simply a file containing mutation rules that describe how a string should be modified. Each line corresponds to one mutation. For example, the `/usr/share/hashcat/rules/best64.rule` file contains the lines `so0`,`si1`,`se3`. These rules substitute the "o", "i" and "e" characters for "0","1" and "3" respectively. For example, the string "leetify" could be mutated into the string "l33t1fy". A great way to learn the syntax of the rules is hashcat's [official documentation for rule based attacks](https://hashcat.net/wiki/doku.php?id=rule_based_attack).
+We start by generating passwords based on the string 'PleaseSubscribe!' which we found earlier. This can be done using hashcat by executing `echo PleaseSubscribe! | hashcat -r /usr/share/hashcat/rules/best64.rule --stdout > passwords`. This command uses hashcat's rule engine to mutate the string 'PleaseSubscribe!' into similar strings. The `-r` flag is used to specify a `.rule` file which is simply a file containing mutation rules that describe how a string should be modified. Each line corresponds to one mutation. For example, the `/usr/share/hashcat/rules/best64.rule` file contains the lines `so0`,`si1`,`se3`. These rules substitute the "o", "i" and "e" characters for "0","1" and "3" respectively. For example, the string "leetify" could be mutated into the string "l33t1fy". A great way to learn the syntax of the rules is hashcat's [official documentation for rule based attacks](https://hashcat.net/wiki/doku.php?id=rule_based_attack).
 
 A tool which can guess user passwords, without requiring password hashes, is [sucrack](https://github.com/hemp3l/sucrack/). The drawback of this tool is, however, that it has to be executed locally on the target host. As the name suggests, the tool uses the `su` command, which is normally used to switch user, to brute force the password of a particular user. Like conventional cracking tools, sucrack can read a wordlist and attempt each password in that wordlist. It attempts to use each password in the wordlist until it either runs out of passwords or finds the correct password.
 
