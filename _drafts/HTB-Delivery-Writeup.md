@@ -40,7 +40,7 @@ If we click the "Helpdesk" link, we are informed by the browser that the website
 └─$
 {% endhighlight %}
 
-To map the domain to the ip address, we can simply add the line `10.10.10.222   helpdesk.delivery.htb` to the `/etc/hosts` file. Since the domain is actually a subdomain of "delivery.htb", we might want to add both of these to the file. Adding both of these domains can be performed from the command line as demonstrated below. The `-n` flag of the `echo` command is used to avoid trailing newlines. The `\t` and `\n` characters represent a tab and a newline character respectively. Finally, the `tee` command is simply used to write the output of `echo -n '10.10.10.222\thelpdesk.delivery.htb'` to the `/etc/hosts` file. If we now try to navigate to the help desk URL [http://helpdesk.delivery.htb](http://helpdesk.delivery.htb), we reach the page below.
+To map the domain to the ip address, we can simply add the line `10.10.10.222   helpdesk.delivery.htb` to the `/etc/hosts` file. Since the domain is actually a subdomain of "delivery.htb", we might want to add both of these to the file. Adding both of these domains can be performed from the command line as demonstrated above. The `-n` flag of the `echo` command is used to avoid trailing newlines. The `\t` and `\n` characters represent a tab and a newline character respectively. Finally, the `tee` command is simply used to write the output of `echo -n '10.10.10.222\tdelivery.htb\n10.10.10.222\thelpdesk.delivery.htb'` to the `/etc/hosts` file. If we now try to navigate to the help desk URL [http://helpdesk.delivery.htb](http://helpdesk.delivery.htb), we reach the page below.
 
 ![helpdesk](/assets/{{ imgDir }}/helpdesk.png)
 
@@ -48,39 +48,36 @@ This page includes links to create help desk tickets, to check the status of exi
 
 ![createTicket](/assets/{{ imgDir }}/createTicket.png)
 
-Next, we click the "Create Ticket" button. This results in the page below, that provides us with an id and an email address which correspond to our ticket. Interestingly enough, this email address belongs to the domain "delivery.htb" and anything emailed to it will be added to our support ticket. This is a relatively common feature for help desk issues in real web applications.
+Next, we click the "Create Ticket" button. This results in the page below, that provides us with an id and a temporary email address which correspond to our ticket. Interestingly enough, this email address belongs to the domain "delivery.htb" and anything emailed to it will be added to our support ticket. This is a relatively common feature for help desk tickets.
 
 ![ticketCreated](/assets/{{ imgDir }}/ticketCreated.png)
 
-Many different services assume that a user with an email at a specific domain works for that domain. In essence, an email at a specific domain indicates that the owner of the email is employed at the domain.  For example, [Slack]() employs this feature. Since we have access to a . This concept is called Ticket Trick and was originally described [in 2017]. 
-
-lpDesks usually allow users to email to a temporary email address provided by HelpDesks to update thestatus of an open ticket. If though the corporate domain is used for tickets, this "feature" allows non-employee users to have access to @Company.com email addresses.  Many cloud services take emailaddresses as "proof of employment" and may grant access to internal services like GitHub, Slack,Confluence, etc. Lets try to create a new Ticket.
-
-[Explain ticket trick briefly]
-
 ![checkTicketStatus](/assets/{{ imgDir }}/checkTicketStatus.png)
 
-Press the "View Ticket" button.
+To see information about our ticket, we can click on "Check Ticket Status". This takes us to a form which asks for an email address and a ticket ID. Here, we fill in the email we chose when we signed up "test@test.xyz" and the ID we saw on the previous page. Then, we press the "View Ticket" button. This leads us to the page below which shows information about our ticket. This is where any emails to our "6062591@delivery.htb" email will end up.
+
+Many different services assume that a user with an email at a specific domain works for that domain. In essence, an email at a specific domain indicates that the owner of the email is employed at the domain. For example, [Slack](https://slack.com/) employs this feature by only allowing access to certain workspaces depending on the domain in the user's email address.  
+
+Since we can read any emails which are sent to "6062591@delivery.htb", we might be able to sign up with this account somewhere and get access to internal resources of the "deliver.htb" domain, since it might be assumed that we are affiliated with the domain because of the email address. The concept of abusing the help desk service to obtain an internal email address and abuse the email address to get access to internal resources, is commonly referred to as the Ticket Trick and was originally described [in 2017](https://medium.com/intigriti/how-i-hacked-hundreds-of-companies-through-their-helpdesk-b7680ddc2d4c). 
 
 ![checkTicketStatus2](/assets/{{ imgDir }}/checkTicketStatus2.png)
 
-We proceed by creating an account on the mattermost website by clicking the "Sign Up" button we saw earlier. We fill in the resulting form with the email, username and password set to "6062591@delivery.htb", "testUser" and "Testing123!" respectively, as shown below.
+To try to perform a Ticket Trick, we proceed by creating an account on the Mattermost website by clicking the "Sign Up" button we saw earlier on the landing page of the web application at port 8065. We then fill in the resulting form with the email, username and password fields set to "6062591@delivery.htb", "testUser" and "Testing123!" respectively.
 
 ![mattermostSignUp](/assets/{{ imgDir }}/mattermostSignUp.png)
 
-We press "Create Account" and reach a page telling us that a verification email has been sent.
+Next, we press "Create Account" and reach a page telling us that a verification email has been sent.
 
 ![mattermostEmail](/assets/{{ imgDir }}/mattermostEmail.png)
 
-If we go back to the ticket information page and refresh it, we can see that the ticket has been update with the content of the verification email! This means that we have the verification link for our account.
+If we go back to the ticket information page and refresh it, we can see that the ticket has been updated with the content of the verification email! As such, we have the verification link and can verify the account we are trying to create! 
 
 ![verifyAccount](/assets/{{ imgDir }}/verifyAccount.png)
 
 
 ![verificationLink](/assets/{{ imgDir }}/verificationLink.png)
-http://delivery.htb:8065/do_verify_email?token=7pyy8jp3eumdj1s6xnki8owk1a97puwow5f4s63jg1ai4yts5xpoe9tkgmz4aasi&email=6062591%40delivery.htb
-
-We type in the password "Testing123!" which we set earlier and press "Sign in". This makes us reach a page where we can create a new Team or join an existing one. Since our email is part of the "delivery.htb" domain, we are allowed to join the internal team for "delivery.htb".
+<!-- http://delivery.htb:8065/do_verify_email?token=7pyy8jp3eumdj1s6xnki8owk1a97puwow5f4s63jg1ai4yts5xpoe9tkgmz4aasi&email=6062591%40delivery.htb -->
+If we visit the verification link, we reach the page shown above which tells us that the email was successfully verified. We can now log in with the password "Testing123!" which we set earlier. Once we have pressed the "Sign in" button,. This makes us reach a page where we can create a new Team or join an existing one. Since our email is part of the "delivery.htb" domain, we are allowed to join the internal team for "delivery.htb".
 
 ![selectTeam](/assets/{{ imgDir }}/selectTeam.png)
 
