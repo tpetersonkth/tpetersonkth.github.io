@@ -4,3 +4,6 @@ Change chroma subsampling: ffmpeg -i output.mp4 -vf scale=w=-1:h=-1:interl=1 -pi
 
 --local debugging--
 jekyll serve _config.yml --drafts --future
+
+-Word count estimate-
+find ./ -type f -name "*" -exec wc -w {} +
