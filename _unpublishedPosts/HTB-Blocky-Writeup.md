@@ -14,7 +14,7 @@ The hack the box machine "Blocky" is an easy machine which is included in [TJnul
  By enumerating the target, it is possible to discover a web application which hosts JAR files on a specific web page. These JAR files can be downloaded and decompiled using [JD-GUI](http://java-decompiler.github.io/). Thereafter, it is possible to find a password in one of these files, which can be used to connect to the target over SSH as an unprivileged user. Then, a `root` shell can be obtained by using the `sudo` command since the compromised user can execute arbitrary commands with `sudo`.
 
 # Exploitation
-We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.37`. The `-sS` `-sC` and `-sV` flags instructs nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that port `21`, `22`, `80` and `25565` are open. These ports correspond to FTP, SSH, HTTP and a Minecraft server respectively. 
+We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.37`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that port `21`, `22`, `80` and `25565` are open. These ports correspond to FTP, SSH, HTTP and a Minecraft server respectively. 
 
 ![nmap](/assets/{{ imgDir }}/nmap.png)
 

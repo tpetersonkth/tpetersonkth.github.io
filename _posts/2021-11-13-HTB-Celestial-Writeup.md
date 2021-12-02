@@ -14,7 +14,7 @@ The hack the box machine "Celestial" is a medium machine which is included in [T
 By enumerating the target, it is possible to discover a NodeJS web application on port 3000. The first time the index page is visited, a 404 page is shown. However, in the response, a base64 encoded cookie is set. Visiting the index page again, with the cookie, results in another response which uses variables located in the cookie. It is then possible to discover that one can send a cookie that contains a reverse shell payload which provides the attacker with a shell on the target machine, when deserialized. Thereafter, privilege escalation can be performed by editing a python script which is executed by the `root` user every 5 minutes.
 
 # Exploitation
-We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.85`. The `-sS` `-sC` and `-sV` flags instructs nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that port 3000 is open and is running [NodeJS](https://nodejs.org/).
+We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.85`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that port 3000 is open and is running [NodeJS](https://nodejs.org/).
 
 ![nmap](/assets/{{ imgDir }}/nmap.png)
 
