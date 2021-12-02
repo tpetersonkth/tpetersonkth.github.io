@@ -4,7 +4,7 @@ title:  "Hack The Box - Json - Writeup"
 date:   2021-11-27 07:00:00 +0200
 tags: ["Hack The Box","OSWE"]
 ---
-{% assign imgDir="HTB-Json-Writeup" %}
+{% assign imgDir="2021-11-27-HTB-Json-Writeup" %}
 
 # Introduction
 The hack the box machine "Json" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of code deobfuscation, deserializtion and Windows Internals. More specifically, the required knowledge within deserialization attacks concerns deserialization attacks within [.NET](https://dotnet.microsoft.com/) and how to use deserialization payload generating tools like [YSoSerial.Net](https://github.com/pwntester/ysoserial.net)
