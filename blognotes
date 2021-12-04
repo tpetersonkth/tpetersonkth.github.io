@@ -7,3 +7,10 @@ jekyll serve _config.yml --drafts --future
 
 -Word count estimate-
 find ./ -type f -name "*" -exec wc -w {} +
+
+-Publishing a post checklist-
+Check for any "TODO" in the post
+Change the date in the md file
+Rename the md file and the directory to include date
+Change the image directory in the md file
+Ensure that tags are appropriate
