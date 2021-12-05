@@ -7,7 +7,7 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Ready-Writeup" %}
 
 # Introduction
-The hack the box machine "Ready" is a Medium machine which is included in [TJnull's OSCP Preparation List](). Exploiting this machine requires knowledge in the areas of arbitrary file uploads, PHP comparisions
+The hack the box machine "Ready" is a medium machine which is included in [TJnull's OSCP Preparation List](). Exploiting this machine requires knowledge in the areas of arbitrary file uploads, PHP comparisions
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
