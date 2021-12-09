@@ -1,0 +1,25 @@
+---
+# this is an empty front matter
+---
+<html>
+<head>
+<script src="/javascript/highlight.js"></script>
+<link rel="stylesheet" href="/assets/main.css">
+</head>
+<body>
+{% highlight none linenos %}
+git@gitlab:~/gitlab-rails/working$ @@ls -l /opt@@
+ls -l /opt
+total 12
+drwxr-xr-x 2 root root 4096 Dec  7  2020 backup
+drwxr-xr-x 1 root root 4096 Dec  1  2020 gitlab
+git@gitlab:~/gitlab-rails/working$ @@@ls -l /opt/backup@@@
+ls -l /opt/backup
+total 100
+-rw-r--r-- 1 root root   872 Dec  7  2020 docker-compose.yml
+-rw-r--r-- 1 root root 15092 Dec  1  2020 gitlab-secrets.json
+-rw-r--r-- 1 root root 79639 Dec  1  2020 gitlab.rb
+git@gitlab:~/gitlab-rails/working$
+{% endhighlight %}
+</body>
+</html> 
