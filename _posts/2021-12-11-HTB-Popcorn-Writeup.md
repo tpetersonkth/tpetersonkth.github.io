@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Popcorn - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2021-12-11 07:00:00 +0200
 tags: ["Hack The Box","OSWE"]
 ---
-{% assign imgDir="HTB-Popcorn-Writeup" %}
+{% assign imgDir="2021-12-11-HTB-Popcorn-Writeup" %}
 
 # Introduction
 The hack the box machine "Popcorn" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Acquiring an initial shell as `www-data` on this machine requires knowledge in the areas of diretory brute forcing, file upload filter bypasses and PHP web shells. In addition, there is a second approach which requires knowledge of how `.torrent` files are structured. The privilege escalation requires knowledge in the areas of Linux PAM or Kernel Exploitation.
