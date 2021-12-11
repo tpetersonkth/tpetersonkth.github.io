@@ -5,13 +5,13 @@ date:   2000-01-01 07:00:00 +0200
 tags: ["Hack The Box","OSCP"]
 ---
 {% assign imgDir="HTB-Ready-Writeup" %}
-<script>  </script>
+
 # Introduction
-The hack the box machine "Ready" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of CVE identification, password reuse attacks and Docker container break outs. While the initial foothold is quite straight forward, the privilege escalation is slightly more complex and interesting in the sense that it requires the attacker to learn how to escape Docker containers, which is a really useful skill during real-life engagements.
+The hack the box machine "Ready" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of CVE identification, password reuse attacks and Docker container breakout techniques. While the initial foothold is quite straight forward, the privilege escalation is slightly more complex and interesting in the sense that it requires the attacker to learn how to escape Docker containers, which is a really useful skill during real-life engagements.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
-By port scanning the target host, it is possible to discover an SSH service and a web application. The web application is running version 11.4.7 of [GitLab](https://about.gitlab.com/) which is vulnerable to [CVE-2018-19571](https://nvd.nist.gov/vuln/detail/CVE-2018-19571) and [CVE-2018-19585](https://nvd.nist.gov/vuln/detail/CVE-2018-19585) which in turn have a corresponding authenticated RCE exploit on [ExploitDB](https://www.exploit-db.com/exploits/49334). By creating a GitLab account and running the exploit, it is possible to obtain a shell in a Docker container on the target. The privilege escalation can then be performed by re-using a password in a ruby script. Then, the real `root` user can be compromised by mounting the underlying operating system's file system inside the container, downloading the private key of the real `root` user and logging in over SSH using the key.
+By port scanning the target host, it is possible to discover an SSH service and a web application. The web application is running version 11.4.7 of [GitLab](https://about.gitlab.com/) which is vulnerable to [CVE-2018-19571](https://nvd.nist.gov/vuln/detail/CVE-2018-19571) and [CVE-2018-19585](https://nvd.nist.gov/vuln/detail/CVE-2018-19585) which in turn have a corresponding authenticated RCE exploit on [ExploitDB](https://www.exploit-db.com/exploits/49334). By creating a GitLab account and running the exploit, it is possible to obtain a shell in a Docker container on the target. The `root` user of the container can then be compromised by reusing a password in a ruby script. Then, the real `root` user can be compromised by mounting the underlying operating system's file system inside the container, downloading the private key of the real `root` user and logging in over SSH using the key.
 
 # Exploitation
 We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.220`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that SSH is running on port 22 and that there is a web application on port 5080.
@@ -23,7 +23,7 @@ If we navigate to [http://10.10.10.220:5080](http://10.10.10.220:5080) in a brow
 ![gitlab](/assets/{{ imgDir }}/gitlab.png)
 
 <div id="register"></div>
-We can register a new account with some random data, as shown below. Note that the password is set to `Testing123!` since a reasonably strong password is required.
+We can register a new account with some random data, as demonstrated below. Note that the password is set to `Testing123!` since a reasonably strong password is required.
 
 ![register](/assets/{{ imgDir }}/register.png)
 
@@ -35,11 +35,11 @@ If we press the `Help` option, we reach the help page below. This page informs u
 
 ![help](/assets/{{ imgDir }}/help.png)
 
-We can use [searchsploit](https://www.exploit-db.com/searchsploit) to search for exploits for this version of GitLab by executing `searchsploit gitlab 11.4.7`. As can be seen below, this results in two python scripts. Both of these scripts exploit [CVE-2018-19571](https://nvd.nist.gov/vuln/detail/CVE-2018-19571) and [CVE-2018-19585](https://nvd.nist.gov/vuln/detail/CVE-2018-19585). We copy [the first one](https://www.exploit-db.com/exploits/49334) to the current directory, by executing `searchsploit -p 49334` and `cp /usr/share/exploitdb/exploits/ruby/webapps/49334.py .`. The first command is used to copy the exploit path to the clipboard, to avoid having to type the whole exploit path in the second command.
+We can use [searchsploit](https://www.exploit-db.com/searchsploit) to search for exploits for this version of GitLab by executing `searchsploit gitlab 11.4.7`. As can be seen below, this results in two python scripts. Both of these scripts exploit [CVE-2018-19571](https://nvd.nist.gov/vuln/detail/CVE-2018-19571) and [CVE-2018-19585](https://nvd.nist.gov/vuln/detail/CVE-2018-19585). We copy [the first one](https://www.exploit-db.com/exploits/49334) to the current directory by executing `searchsploit -p 49334` and `cp /usr/share/exploitdb/exploits/ruby/webapps/49334.py .`. The first command is used to copy the exploit path to the clipboard, to avoid having to type the whole exploit path in the second command.
 
 ![searchsploit](/assets/{{ imgDir }}/searchsploit.png)
 
-At the top of the exploit script, we can see the code for parsing command line arguments. As can be seen at line 11 to 15 below, values of all of the arguments `-u`, `-p`, `-g`, `-l` and `-P` must be specified when launching the exploit. These correspond to a username, a password, a URL without the port number, a reverse shell IP and a reverse shell port respectively. The two last of these should be the IP of the attacking machine and a port number where we listen for connections from the target.
+At the top of the exploit script, shown below, we can see the code for parsing command line arguments. As can be seen at line 11 to 15, values of all of the arguments `-u`, `-p`, `-g`, `-l` and `-P` must be specified when launching the exploit. These correspond to a username, a password, a URL without the port number, a reverse shell IP and a reverse shell port respectively. The two last of these should be the IP of the attacking machine and a port number where we listen for connections from the target.
 
 {% highlight python linenos %}
 [...]
@@ -73,7 +73,7 @@ We start a netcat listener by executing `nc -lvnp 443` and launch the exploit by
 
 ![revShell](/assets/{{ imgDir }}/revShell.png)
 
-After a couple of seconds, the target connects to us on port 443 and we obtain a shell. We can confirm that the host has `python3` installed by executing `which python3` which we then can use to upgrade our shell by executing `python3 -c "import pty; pty.spawn('/bin/bash')"`.
+After a couple of seconds, the target connects to us on port 443 and we obtain a shell. We can confirm that the host has `python3` installed by executing `which python3` which we can then use to upgrade our shell by executing `python3 -c "import pty; pty.spawn('/bin/bash')"`.
 
 # Privilege Escalation
 The `/opt` directory is a directory where unbundled packages are normally installed. In other words, it is a location where the user can install applications which can not be downloaded using a package manager like apt, yum or pacman. If we execute `ls -l /opt` on the target host, we can see that the directory contains another directory named `backup`. In the `backup` directory, we can then find a file named "docker-compose.yml" and a file named "gitlab.rb".
@@ -251,7 +251,7 @@ Password: @@wW59U!ZKMbG9+*#h@@
 @@@root@gitlab@@@:/var/opt/gitlab/gitlab-rails/working#
 {% endhighlight %}
 
-In privileged Docker containers, it is often possible for the `root` user to mount the host's file system. By executing `fdisk -l`, we can list the hard drive partitions which we can access. As can be seen below, we have access to `/dev/sda2` which is the host's file system. We can access this file system by executing `mkdir /mnt/realFileSystem` and `mount /dev/sda2 /mnt/realFileSystem` to create an empty directory and mount the file system in this directory.
+In privileged Docker containers, it is often possible for the `root` user to mount the host's file system. By executing `fdisk -l`, we can list the hard drive partitions which we can access. As can be seen below, one of these is `/dev/sda2` which is the host's file system. We can access this file system by executing `mkdir /mnt/realFileSystem` and `mount /dev/sda2 /mnt/realFileSystem` to create an empty directory and mount the file system in this directory.
 
 {% highlight none linenos %}
 root@gitlab:/var/opt/gitlab/gitlab-rails/working# @@fdisk -l@@
