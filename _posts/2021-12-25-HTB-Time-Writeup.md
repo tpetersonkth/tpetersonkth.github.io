@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Time - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2021-12-25 07:00:00 +0200
 tags: ["Hack The Box","OSCP"]
 ---
-{% assign imgDir="HTB-Time-Writeup" %}
+{% assign imgDir="2021-12-25-HTB-Time-Writeup" %}
 
 # Introduction
 The hack the box machine "Time" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge about deserialization attacks, systemd timers and Linux file permissions. The most challenge part is, however, to locate the right CVE for the initial foothold, since there aren't many good indicators for which CVE:s that would work on the target.
