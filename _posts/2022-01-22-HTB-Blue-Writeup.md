@@ -1,12 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Blue - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2022-01-22 07:00:00 +0200
 tags: ["Hack The Box","OSCP"]
 ---
-{% assign imgDir="HTB-Blue-Writeup" %}
-
-<!-- TODO: Work more on this post if time allows for it.. -->
+{% assign imgDir="2022-01-22-HTB-Blue-Writeup" %}
 
 # Introduction
 The hack the box machine "Blue" is an easy machine which could be considered as one of the simplest machines on hack the box. Exploiting this machine only requires knowledge about [EternalBlue](https://en.wikipedia.org/wiki/EternalBlue), a dangerous exploit which has been utilized in various ransomwares after being leaked by the hacker group [Shadow Brokers](https://en.wikipedia.org/wiki/The_Shadow_Brokers).
