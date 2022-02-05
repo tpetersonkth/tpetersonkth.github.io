@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Delivery - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2022-02-05 07:00:00 +0200
 tags: ["Hack The Box","OSCP"]
 ---
-{% assign imgDir="HTB-Delivery-Writeup" %}
+{% assign imgDir="2022-02-05-HTB-Delivery-Writeup" %}
 
 # Introduction
 The hack the box machine "Delivery" is an easy machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of basic web enumeration, [business logic vulnerabilities](https://portswigger.net/web-security/logic-flaws) and rule-based password cracking. What makes this machine particularly interesting is that hints are provided for the `root` user's password, meaning that one does not require a password hash to crack this password. Instead, password guesses can be performed automatically by abusing the `su` command with the tool [sucrack](https://github.com/hemp3l/sucrack).
