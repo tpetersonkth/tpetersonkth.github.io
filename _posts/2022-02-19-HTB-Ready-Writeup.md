@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Ready - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2022-02-19 07:00:00 +0200
 tags: ["Hack The Box","OSCP"]
 ---
-{% assign imgDir="HTB-Ready-Writeup" %}
+{% assign imgDir="2022-02-19-HTB-Ready-Writeup" %}
 
 # Introduction
 The hack the box machine "Ready" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of CVE identification, password reuse attacks and Docker container breakout techniques. While the initial foothold is quite straight forward, the privilege escalation is slightly more complex and interesting in the sense that it requires the attacker to learn how to escape Docker containers, which is a really useful skill during real-life engagements.
