@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Creating a Multithreaded Port Scanner in Python"
-date:   2000-01-01 07:00:00 +0200
+date:   2022-03-05 07:00:00 +0200
 tags: ["OSCP","Pentesting Tips & Tricks"]
 ---
-{% assign assetDir="Creating-a-Multithreaded-Port-Scanner-in-Python" %}
+{% assign assetDir="2022-03-05-Creating-a-Multithreaded-Port-Scanner-in-Python" %}
 
 # Introduction
 
