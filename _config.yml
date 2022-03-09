@@ -21,7 +21,7 @@ baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://tpetersonkth.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  tpetersonkth
 linkedin_username: thomas-peterson-sweden
-copyright: "© 2021. All rights reserved."
+copyright: "© 2022. All rights reserved."
 header_pages: 
  - about.md
  - aboutMe.md
