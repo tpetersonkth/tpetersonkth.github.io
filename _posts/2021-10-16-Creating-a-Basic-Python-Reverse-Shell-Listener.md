@@ -3,6 +3,7 @@ layout: post
 title:  "Creating a Basic Python Reverse Shell Listener"
 date:   2021-10-16 17:00:10 +0200
 tags: ["Pentesting Tips & Tricks","OSWE"]
+popularity: 1000
 ---
 
 # Introduction
