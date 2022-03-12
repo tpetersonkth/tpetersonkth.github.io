@@ -28,13 +28,13 @@ As this index page doesn't provide us with much interesting information, we proc
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[~]
-└─$ ffuf -u http://10.10.10.6/FUZZ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -ic
+└─$ @@ffuf -u http://10.10.10.6/FUZZ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -ic@@
 [...]
                         [Status: 200, Size: 177, Words: 22, Lines: 5]
 index                   [Status: 200, Size: 177, Words: 22, Lines: 5]
-test                    [Status: 200, Size: 47065, Words: 2465, Lines: 651]
-torrent                 [Status: 301, Size: 310, Words: 20, Lines: 10]
-rename                  [Status: 301, Size: 309, Words: 20, Lines: 10]
+@@@test@@@                    [Status: @@@200@@@, Size: 47065, Words: 2465, Lines: 651]
+@@@torrent@@@                 [Status: @@@301@@@, Size: 310, Words: 20, Lines: 10]
+@@@rename@@@                  [Status: @@@301@@@, Size: 309, Words: 20, Lines: 10]
                         [Status: 200, Size: 177, Words: 22, Lines: 5]
 :: Progress: [220547/220547] :: Job [1/1] :: 1025 req/sec :: Duration: [0:03:35] :: Errors: 1 ::
 {% endhighlight %}
@@ -124,7 +124,7 @@ After pressing `Upload Torrent`, we are redirected to the URL `http://10.10.10.6
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ ffuf -u http://10.10.10.6/torrent/FUZZ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -ic
+└─$ @@ffuf -u http://10.10.10.6/torrent/FUZZ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -ic@@
 [...]
 rss                     [Status: 200, Size: 2419, Words: 124, Lines: 61]
 download                [Status: 200, Size: 0, Words: 1, Lines: 1]
@@ -138,7 +138,7 @@ admin                   [Status: 301, Size: 316, Words: 20, Lines: 10]
 health                  [Status: 301, Size: 317, Words: 20, Lines: 10]
 browse                  [Status: 200, Size: 9278, Words: 794, Lines: 186]
 comment                 [Status: 200, Size: 936, Words: 83, Lines: 17]
-upload                  [Status: 301, Size: 317, Words: 20, Lines: 10]
+@@@upload@@@                  [Status: @@@301@@@, Size: 317, Words: 20, Lines: 10]
 css                     [Status: 301, Size: 314, Words: 20, Lines: 10]
 edit                    [Status: 200, Size: 0, Words: 1, Lines: 1]
 lib                     [Status: 301, Size: 314, Words: 20, Lines: 10]
@@ -150,7 +150,7 @@ config                  [Status: 200, Size: 0, Words: 1, Lines: 1]
 preview                 [Status: 200, Size: 27029, Words: 128, Lines: 138]
 readme                  [Status: 301, Size: 317, Words: 20, Lines: 10]
 thumbnail               [Status: 200, Size: 1748, Words: 21, Lines: 11]
-torrents                [Status: 301, Size: 319, Words: 20, Lines: 10]
+@@@torrents@@@                [Status: @@@301@@@, Size: 319, Words: 20, Lines: 10]
 validator               [Status: 200, Size: 0, Words: 1, Lines: 1]
 hide                    [Status: 200, Size: 3765, Words: 194, Lines: 135]
 PNG                     [Status: 301, Size: 314, Words: 20, Lines: 10]
@@ -194,8 +194,8 @@ At line 3 and 4 we define a filename and a directory where we believe that the f
 If we run the code, we discover the URL `http://10.10.10.6/torrent/torrents/b44b82a4bc6c35f6ad5e9fceefef9509c17fba74.btf` as can be seen below. The author might have chosen to save torrent files with the extension `.btf` since "BTF" is an abbreviation for "Bit Torrent File". It is, however, not a common file extension. Since the extension started with one of the first characters in the alphabet, it only took 81 seconds for the script to finish when executed on my machine. The script might take more or less time to finish on another machine depending on its hardware as well as its internet connection.
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ python3 x.py                                                                                                                                      1 ⚙
-Found URL: http://10.10.10.6/torrent/torrents/b44b82a4bc6c35f6ad5e9fceefef9509c17fba74.btf
+└─$ @@python3 x.py@@                                                                                                                                      1 ⚙
+@@@Found URL: http://10.10.10.6/torrent/torrents/b44b82a4bc6c35f6ad5e9fceefef9509c17fba74.btf@@@
 The URL was found in 81 seconds
 {% endhighlight %}
 

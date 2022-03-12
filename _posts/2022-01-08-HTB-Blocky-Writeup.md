@@ -31,7 +31,7 @@ Next, we open a browser and navigate to [http://10.10.10.37/](http://10.10.10.37
 By clicking on the title of the post, we reach another page, displayed above. Here, we can see that a user named “Notch” submitted this post. We note this name down for later use. As there are no other posts from other users or any interesting pages which we can reach by clicking around, we proceed by performing a directory bruteforce as shown below. Since the selected wordlist contains comments (lines starting with the character `#`), we use the `-ic` flag to instruct `ffuf` to ignore wordlist comments.
 
 {% highlight none linenos %}
-kali@kali:/tmp/x$ ffuf -u http://10.10.10.37/FUZZ -w /usr/share/dirbuster/wordlists/directory-list-2.3-small.txt -ic
+kali@kali:/tmp/x$ @@ffuf -u http://10.10.10.37/FUZZ -w /usr/share/dirbuster/wordlists/directory-list-2.3-small.txt -ic@@
 [...]
                     [Status: 200, Size: 52253, Words: 3306, Lines: 314]
 wiki                [Status: 301, Size: 309, Words: 20, Lines: 10]

