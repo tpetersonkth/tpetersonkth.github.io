@@ -241,7 +241,7 @@ table {
   border-collapse: collapse;
   tr {
     &:nth-child(even) {
-      background-color: lighten($grey-color-light, 6%);
+      //background-color: lighten($grey-color-light, 6%);
     }
   }
   th, td {
@@ -254,9 +254,33 @@ table {
   }
   td {
     border-left: 1px solid $grey-color-light;
-
-    &:nth-child(1) { //Ensure that the line numbers column is not to wide..
+    &:nth-child(1) { //Ensure that the line numbers column is not too wide..
     width: 10px;
     }
   }
+}
+
+.customTable {
+    width: auto; //Cancel width: 100%; of table
+    margin: auto; //Center horizontally
+    margin-bottom: 10px; //Create some space between table and the subsequent text
+    border: 1px solid $grey-color-light;
+    border-collapse: collapse;
+
+    tr {
+        &:nth-child(odd) {
+            background-color: lighten($grey-color-light, 4%);
+        }
+        //background-color: $grey-color-light;
+        //border: 1px solid $grey-color-light;
+    }
+
+
+    th {
+        white-space: nowrap;//Avoid line breaks in header
+    }
+
+    tr:hover {
+        background: #BBBBBB;
+    }
 }
