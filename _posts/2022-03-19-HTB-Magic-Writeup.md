@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Magic - Writeup"
-date:   2000-01-01 07:00:00 +0200
-tags: ["Hack The Box","OSCP","PHP","File Upload"]
+date:   2022-03-19 07:00:00 +0200
+tags: ["Hack The Box","OSCP"]
 ---
-{% assign imgDir="HTB-Magic-Writeup" %}
+{% assign imgDir="2022-03-19-HTB-Magic-Writeup" %}
 
 # Introduction
 The hack the box machine "Magic" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Acquiring an initial shell as `www-data` on this machine requires knowledge in the areas of diretory brute forcing, image file formats and web server misconfigurations. The privilege escalation requires knowledge about database attacks and exploitation of SUID binaries with relative paths.
