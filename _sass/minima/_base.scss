@@ -283,4 +283,11 @@ table {
     tr:hover {
         background: #BBBBBB;
     }
+
+    td {
+        &:nth-child(1) { //Ensure that the first column is not assumed to be a line number column with fixed width
+            width: auto;
+        }
+    }
+
 }
