@@ -130,33 +130,48 @@ Finally, I attempted the 48 hour exam (+24 hours for sending in the report) for 
 
 Apart from the lack of sleep during the exam, both the lab and the exam was an enjoyable experience. Looking back, I think that I made the right decision in taking the course, since it helped me sharpen my code review skills significantly. Additionally, the course material appeared to be quite well thought through and modern. Consequently, I would recommend anyone who is considering taking this course to just go for it.
 
-# Tips
-In this section, I provide any tips I would give someone who has yet to do the OSWE. In the next section, 
+# Tips and Checklist
+In this section, I provide any tips I would give someone who has yet to do the OSWE. At the end of this section, I will include them in a checklist at the end of the section, making it easy to turn these into a todo list. 
 
-* Learn to use the Python [requests]() library very well.
-* Learn regex - regex101.com
+Before starting the lab access, I recommend that you familiarize yourself with the languages which the course is focusing on. As can be seen in the [course syllabus](https://www.offensive-security.com/documentation/awae-syllabus.pdf), this is Java, C#, NodeJS and PHP. Learning how routing works for web applications in these languages is an essential skill for identifying exploitable vulnerabilities. In addition, I would also recommend hacking all of the machines mentioned in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979).
 
-During the Lab you will
-Such as the automated script written [here](Holiday Auto exploit link)
+During the course, you will have to script a lot of automated exploitation using Python. Since this is a web course, you will need a Python module for sending web requests. I recommend getting familiar with the [requests](https://docs.python-requests.org/en/latest/) module. An example of automated exploitation with Python and this module, can be found [here]({% post_url 2022-04-02-HTB-Holiday-Automated-Exploitation %}). In addition, I strongly recommend getting reasonably good at regular expressions as these can be useful in a large amount of different contexts. An amazing site for playing around with regular expressions is [regex101](https://regex101.com/), as demonstrated below where a regex is used to search for SQLI vulnerabilities.
+
+<img src="/assets/{{ imgDir }}/regex.png" width="80%" />
+
+Once your lab access have started, I recommend taking the approach I ended up taking, which was to read a chapter, watch its corresponding videos and then doing the chapter's exercises. While doing this, you should take a lot of notes. I recommend using [cherrytree](https://www.giuspen.com/cherrytree/) to organize your notes as this makes it really quick to find what you need when you need it, later on. Once you have detailed notes of what you have learn for each chapter, I recommend proceeding with the extra miles. Some of the extra miles will force you to search for vulnerabilities without any guidance, which will force you to establish a methodology for how you approach secure code review. 
+
+After finishing the extra miles, I recommend creating a draft methodology. I did this by making a cherrytree node for all different types of vulnerabilites and what I would search for to find them. Once you are happy with the methodology, you should proceed to apply it to the three extra lab machines, to see if it works in practice. 
+
+If you still have lab access at this point, I recommend trying to find the vulnerabilties exists in the lab machines but weren't covered in the course material. A list of these can be found [here](https://forums.offensive-security.com/showthread.php?32421-Extra-Extra-Miles). When you have done these, or if your lab time is running out, you should check that you haven't forgotten anything in your notes. Finally, it is good to book an exam slot while you are still practicing in the lab, since exam slots normally need to be scheduled 2 or 3 months in advance.
+
+After your lab access have ended, it is good if you try to dive deeper into subjects where you are still not feeling completely comfortable or where you are still feeling inexperienced. Furthermore, it is mentioned in the [official OSWE exam guide](https://help.offensive-security.com/hc/en-us/articles/360046869951-OSWE-Exam-Guide) that you should hand in a pentest report after your exam. I strongly recommend writing a template for this exam report before the exam starts, as you don't want to lost a bunch of time writing a pentest report from scratch. There are some good templates available [on github](https://github.com/noraj/OSCP-Exam-Report-Template-Markdown/). 
+
+The last thing you should do before the exam is to relax! The exam is 3 days long, which could be quite energy consuming. Especially since it can be challenging to get good quality sleep during an exam. Finally, the listing below contains checklists of what you should do before, during and after the course, to ensure that you learn as much as possible. These checklists contain everything mentioned in this post.
 
 {% highlight none linenos %}
 Checklist Before Lab Access:
-* Do all the Hack the Box listed in TJNulls OSWE preparation list.
-* Learn how routing works in PHP, Java, NodeJS and .NET.
+[X] Find this checklist
+[] Get familiar with routing in Java, C#, NodeJS and PHP.
+[] Do all the Hack the Box machines listed in TJnull's OSWE Preparation List: https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979
+[] Familiarize yourself with the Python requests library: https://docs.python-requests.org/en/latest/
+[] Learn regular expressions(regex) using https://regex101.com/
 
 Checklist During Lab Access:
-* Read the course book, watch the videos and do the exercises while taking notes.
-* Do the extra miles.
-* Review the notes.
-* Do the three extra lab machines
-* There are more vulnerabilites in the lab machines than those mentioned in the exercises and extra miles of the course literature. See if you can find them (See the forums for hints)
-* Book the exam (Open slots are usually around 3 months away).
+[] Read the course book, watch the videos and do the exercises while taking notes.
+[] Do the extra miles.
+[] Review the notes and establish a methodology (I.e how you search for different vulnerabilities)
+[] Do the three extra lab machines with you methodology
+[] Refine your methodology
+[] There are more vulnerabilites in the lab machines than those mentioned in the exercises and extra miles of the course literature. See if you can find them (See the forums for hints: https://forums.offensive-security.com/showthread.php?32421-Extra-Extra-Miles )
+[] Book the exam (Open slots are usually around 2 or 3 months away).
+[] Check that nothing is missing from your notes (F.e something you learned during an extra mile e.t.c)
 
 Checklist After Lab Access:
-* Review your notes
-* Ensure that you have read the exam guide, have snacks ready, your passport and a camera that you can mount appropriately.
-* Write a template report for the exam
-* Make sure to relax before the exam. (You don't want to burn out).
+[] Review your notes and dive deeper into subjects where you don't feel super comfortable or experienced
+[] Write a template report for the exam
+[] Ensure that you have read the exam guide(https://help.offensive-security.com/hc/en-us/articles/360046869951-OSWE-Exam-Guide), have snacks ready, your passport ready and a camera that you can mount appropriately.
+[] Make sure to relax before the exam.
 {% endhighlight %}
 
 
