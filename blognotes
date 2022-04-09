@@ -4,8 +4,15 @@ Change chroma subsampling: ffmpeg -i output.mp4 -vf scale=w=-1:h=-1:interl=1 -pi
 
 Speed up 2x: ffmpeg -itsscale 0.5 -i demo3.mp4 -c copy demo4.mp4
 
+--Install jekyll--
+sudo gem install jekyll
+sudo gem install minima
+bundle install
+
 --local debugging--
 jekyll serve _config.yml --drafts --future
+-or
+bundle exec jekyll serve
 
 -Word count estimate-
 find ./ -type f -name "*" -exec wc -w {} +
