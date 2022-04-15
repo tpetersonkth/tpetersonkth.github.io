@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "OSWE Review 2022"
-date:   2000-01-01 07:00:00 +0200
+date:   2022-04-16 07:00:00 +0200
 tags: ["OSWE"]
 ---
-{% assign imgDir="OSWE-Review" %}
+{% assign imgDir="2022-04-16-OSWE-Review" %}
 
 # Introduction
 
@@ -23,45 +23,6 @@ The longest I was stuck on an extra miles exercise was 3 days. When stuck, I fou
 While I did a lot of studying during evenings and weekends, my job also gave me some time to study during the time periods 13/12 to 23/12, 3/1 to 11/1 and 17/1 to 31/1. During these day, I spent on average approximately one or two hours a day working on tasks related to my job, and the remainder of the day on the course. I would almost always start at 9.00 and finish no later than 21.00. I tried to always stop working before 21.00 since it normally doesn't help me to work for longer as I just get tired and unproductive the next day.
 
 The table below shows how I spent each day of my lab access. Note that this table includes 91 days since it contains 89 full days and 2 half-days. In the beginning, I tried to finish a chapter per day. This included reading the course book, watching the related videos, taking notes and completing the exercises, but not the extra miles exercises. Since some chapters were longer or shorter as well as easier or harder, I would sometimes get stuck a bit longer on them. 
-
-<!-- 
-| Day | Date | Main Focus | Hours Worked (Estimate) | Comment |
-| ----------- | ----------- | ----------- | ----------- | ----------- |
-| 1 | 11/12 | Planning | 5 | Started the course in the middle of the day | 
-| 2 | 12/12 | Chapter 1/2 | 10 |  | 
-| 3 | 13/12 | Chapter 3 | 10 |  | 
-| 4 | 14/12 | Chapter 4 | 10 |  | 
-| 5 - 6 | 15/12 - 16/12 | Chapter 5 | 20 | Struggled a bit | 
-| 7 | 17/12 | Chapter 6/7 | 10 |  | 
-| 8 | 18/12 | Chapter 7 | 10 |  | 
-| 9 | 19/12 | Chapter 8 | 10 |  | 
-| 10 | 20/12 | Chapter 9 | 10 |  | 
-| 11 | 21/12 | Chapter 10 | 10 |  | 
-| 12 | 22/12 | Chapter 11 | 10 |  | 
-| 13 | 23/12 | Chapter 12 | 10 |  | 
-| 14 | 24/12 | Christmas | 0 | Swedish Christmas celebration |
-| 15 - 20 | 25/12 - 30/12  | Family | 0 | Holidays
-| 21 | 31/12 | New Years Eve | 0 |  | 
-| 22 - 25 | 1/1 - 4/1 | Chapter 13 | 32 | Felt tired and confused | 
-| 26 | 5/1 | Break day | 0 | Working out, resting e.t.c |
-| 27 | 6/1 | Extra chapter | 8 | Archived chapter available in the portal |
-| 28 | 7/1 | Reading forums and planning | 5 |  |
-| 29 - 32 | 8/1 - 11/1| Extra miles | 40 | Started working on extra miles |
-| 33 - 35 | 12/1 - 14/1 | Work | 6 | Extra miles during evenings | 
-| 36 - 52 | 15/1 - 31/1| Extra miles  | 165 |  |
-| 53 - 56 | 1/2 - 4/2 | Work | 8 | Extra miles during evenings | 
-| 57 - 58 | 5/2 - 6/2 | Extra miles | 20 |  |
-| 59 - 63 | 7/2 - 11/2 | Work | 10 | Extra miles during evenings |
-| 64 - 65 | 12/2 - 13/2 | Extra miles | 20 | All extra miles done! |
-| 66 - 70| 14/2 - 18/2 | Work | 10 | Planning & methodology evaluation | 
-| 71 | 19/2 | Blackbox machine | 10 |  |
-| 72 | 20/2 | Whitebox machine 1 | 10 |  |
-| 73 - 77 | 21/2 - 25/2 | Work | 0 | Resting after work |
-| 78 - 79 | 26/2 - 27/2 | Whitebox machine 2 | 20 |  |
-| 80 - 84 | 28/2 - 4/3 | Work | 10 | Figuring out Remote debugging | 
-| 85 - 86 | 5/3 - 6/3 | Extra vulns from [forum post](https://forums.offensive-security.com/showthread.php?32421-Extra-Extra-Miles) | 20 |  |
-| 87 - 91 | 7/3 - 11/3 | Work | 10 | Reviewing notes |
--->
 
 <table class="customTable"><tr><th>Day</th><th>Date</th><th>Main Focus</th><th>Estimated Hours</th><th>Comment</th></tr>
 <tr><td>1</td><td>11/12</td><td>Planning</td><td>5</td><td>Started the course in the middle of the day</td></tr>
