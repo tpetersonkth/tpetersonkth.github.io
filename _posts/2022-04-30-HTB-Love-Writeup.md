@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Love - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2022-04-30 07:00:00 +0200
 tags: ["Hack The Box","OSCP"]
 ---
-{% assign imgDir="HTB-Love-Writeup" %}
+{% assign imgDir="2022-04-30-HTB-Love-Writeup" %}
 
 # Introduction
 The hack the box machine "Love" is an easy machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge about web enumeration, SSRF vulnerabilities, exploit identification, the Windows Registry and the AlwaysInstallElevated policy. Albeit being rated as easy, this machine requires several exploitation steps before remote code execution can be achieved, which is somewhat unusual for easy machines.
