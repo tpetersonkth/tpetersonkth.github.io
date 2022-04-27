@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Intelligence - Writeup"
-date:   2020-01-01 07:00:00 +0200
+date:   2022-05-14 07:00:00 +0200
 tags: ["Hack The Box","OSCP","Active Directory"]
 ---
-{% assign imgDir="HTB-Intelligence-Writeup" %}
+{% assign imgDir="2022-05-14-HTB-Intelligence-Writeup" %}
 
 # Introduction
 The hack the box machine "Intelligence" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of metadata extraction, automatic content inspection of PDF files, SMB brute forcing, Active Directory enumeration and Active Directory exploitation.
