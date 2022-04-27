@@ -114,7 +114,7 @@ The download buttons link to the pages [http://10.10.10.248/documents/2020-01-01
 
 ![port80_pdf](/assets/{{ imgDir }}/port80_pdf.png)
 
-An interesting aspect of these links is that the only unpredictable characters they contain are the upload date characters. We could strongly suspect that other documents could have been uploaded to the web site at other dates. However, manually guessing upload dates is slow as we would need to type every date manually. Instead, we can automate our guesses using a Python script like the one shown below. At line 4 to 6, we set the target to attack as well as the start and stop date. The two links we already know were uploaded in 2020 and we thus choose to check for any uploads from 2019 to 2021.
+An interesting aspect of these links is that the only unpredictable characters they contain are the upload date characters. We could strongly suspect that other documents could have been uploaded to the website at other dates. However, manually guessing upload dates is slow as we would need to type every possible date manually. Instead, we can automate our guesses using a Python script like the one shown below. At line 4 to 6, we set the target to attack as well as the start and stop date. The two links we already know were uploaded in 2020 and we thus choose to check for any uploads from 2019 to 2021.
 
 {% highlight python linenos %}
 import datetime, requests
@@ -142,7 +142,7 @@ for date in dates:
 		    f.write(response.content)
 {% endhighlight %}
 
-At line 9, we calculate the number of days between the start and stop date we specified earlier. Then, at line 10, we use list comprehension to generate a list of all the dates we want to investigate. At line 11, we format the list of dates to the format we saw in the links. Then, we iterate through all dates using a for loop. In the for loop, we use a print statement to let the user know which date we are currently investing. Note that we use `end="\r"` to keep this information on one line which auto-updates. The next two lines construct a URL using a date and sends a request to this URL. Then, at line 19 to 23, we check if the resulting status code was `200 OK`. If this is the case, we have found a valid PDF and we write it to a file.
+At line 9, we calculate the number of days between the start and stop date we specified earlier. Then, at line 10, we use list comprehension to generate a list of all the dates we want to investigate. At line 11, we format the list of dates to the format we saw in the links. Then, we iterate through all dates using a for loop. In the for loop, we use a print statement to let the user know which date we are currently investigating. Note that we use `end="\r"` to keep this information on one line which auto-updates. The next two lines construct a URL using a date and sends a request to this URL. Then, at line 19 to 23, we check if the resulting status code was `200 OK`. If this is the case, we have found a valid PDF and we write it to a file.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -248,7 +248,7 @@ Jose.Williams
 └─$
 {% endhighlight %}
 
-Another thing we could do with these PDF files is to inspect their content. We can use a tool such as [abiword](https://github.com/AbiWord/abiword) to extract the text of a PDF as demonstrated below. We use the `--to` flag to specify that we want the tool to convert the PDF content to textual data and the `--to-name` flag to specify that the output should be written to the file which has the file descriptor `1`. In UNIX-based file systems, the file descriptors 0, 1 and 2 corresponds to STDIN, STDOUT and STDERR. As such, this flag ensures that the output is written to standard output rather than a file.
+Another thing we could do with these PDF files is to inspect their content. We can use a tool such as [abiword](https://github.com/AbiWord/abiword) to extract the text of a PDF as demonstrated below. We use the `--to` flag to specify that we want the tool to convert the PDF content to textual data and the `--to-name` flag to specify that the output should be written to the file which has the file descriptor `1`. In UNIX-based file systems, the file descriptors `0`, `1` and `2` corresponds to STDIN, STDOUT and STDERR. As such, this flag ensures that the output is written to standard output rather than a file.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -265,7 +265,7 @@ numquam. Quisquam sit tempora voluptatem. Numquam ut dolore consectetur dolor qu
 Magnam aliquam quisquam porro. Modi est ut numquam dolor dolorem neque.
 {% endhighlight %}
 
-We can use this technique to extract the text of all pdf documents to standard output as performed below. Then, we can use `grep` to search for keywords such as "password", to find interesting information. To get some context for our matches, we can use the `-C` flag to display a couple of lines before and after each matching line rather than only the matching line. Upon searching the output using `grep`, we discover that `NewIntelligenceCorpUser9876` is a default password which users should change after logging in.
+We can use this technique to extract the text of all PDF documents to standard output by instructing the abword tool to target all PDF files using `*.pdf`. Then, we can use `grep` to search for keywords such as "password", to find interesting information. To get some context for our matches, we can use the `-C` flag to display a couple of lines before and after each matching line rather than only the matching line. Upon searching the output using `grep`, we discover that `NewIntelligenceCorpUser9876` is a default password which users should change after logging in.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -288,7 +288,7 @@ velit magnam. Ipsum ut numquam tempora sit. Tempora eius est voluptatem.
 Dolorem numquam consectetur etincidunt etincidunt sed. Neque magnam ipsum modi sit aliquam amet. Amet consectetur modi quisquam adipisci aliquam
 {% endhighlight %}
 
-During our nmap scan, we discovered that the SMB ports 139 and 445, were open. Since SMB allows users to authenitcate before accessing shares, we could check if any of the users still use the default password. This can be performed using `crackmapexec`, as shown below. From the output of the command, we discover that the user `Tiffany.Molina` still hasn't changed her password!
+During our nmap scan, we discovered that the SMB ports 139 and 445, were open. Since SMB allows users to authenticate before accessing shares, we could check if any of the users still use the default password. This can be performed using `crackmapexec`, as shown below. From the output of the command, we discover that the user `Tiffany.Molina` still hasn't changed her password!
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -364,7 +364,7 @@ SMB         10.10.10.248    445    DC               [@@@+@@@] @@@intelligence.ht
 └─$
 {% endhighlight %}
 
-We can use the newly discovered credentials to check what SMB shares the `Tiffany.Molina` has access to. This results in the discovery of the 4 non-standard shares `IT`, `NETLOGON`, `SYSVOL` and `Users`. We can use `smbclient` to connect to each of these shares as `Tiffany.Molina` and check if there are any interesting files. Upon doing this, we discover a file named "downdetector.ps1" on the `IT` share. We can download this file by executing `get downdetector.ps1`.
+We can use the newly discovered credentials to check what SMB shares the `Tiffany.Molina` user has access to. This results in the discovery of the 4 non-standard shares `IT`, `NETLOGON`, `SYSVOL` and `Users`. We can use `smbclient` to connect to each of these shares as `Tiffany.Molina` and check if there are any interesting files. Upon doing this, we discover a file named "downdetector.ps1" on the `IT` share. We can download this file by executing `get downdetector.ps1`.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -409,7 +409,7 @@ dos2unix: @@@converting UTF-16LE file downdetector.ps1 to UTF-8 Unix format@@@..
 └─$ @@nano downdetector.ps1@@
 {% endhighlight %}
 
-Since this file originated from a Windows host, it is encoded as little-endian [UTF-16](https://en.wikipedia.org/wiki/UTF-16) with CRLF line terminators, as can be seen above. [Endianess](https://en.wikipedia.org/wiki/Endianness) defines in what order bytes should be stored in memory. For example, using big endian, we would store the string "ABC" as `0x65666700` in memory. Conversely, if we used little endian, the string would be stored as `0x00676665`. Furthermore, UTF-16 is simply a character encoding, meaning that it is a one-to-one mapping between binary values and characters. 
+Since this file originated from a Windows host, it is encoded as little-endian [UTF-16](https://en.wikipedia.org/wiki/UTF-16) with CRLF line terminators, as can be seen above. [Endianess](https://en.wikipedia.org/wiki/Endianness) defines in what order bytes should be stored in memory. For example, using big endian and UTF-8 encoding, we would store the string "ABC" as `0x41424300` in memory. Conversely, if we used little endian, the string would be stored as `0x00434241`. Furthermore, UTF-16 is simply a character encoding, meaning that it is a one-to-one mapping between binary values and characters. 
 
 Finally, Windows uses a carriage return (CR) and line feed (LF) character to mark the end of a line, while Linux only uses a line feed (LF) character. If we want to open this file in a text editor, such as nano, we will need to convert it to a Linux friendly format. We can do this using the `dos2unix` tool.
 
@@ -428,13 +428,13 @@ foreach($record in Get-ChildItem "AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=Doma
 }
 {% endhighlight %}
 
-Inside of the for loop, the [Invoke-WebRequest](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-webrequest) cmdlet is used to send a web request to each object we are iterating over. The if clause at line 6, attempts to check if the response code for the response of this request does not equal a `200 OK`. If this is not the case, the web site is not running properly and an email should be sent to the user `Ted.Graves` to let him know that there is an issue with this particular web site.
+Inside of the for loop, the [Invoke-WebRequest](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-webrequest) cmdlet is used to send a web request to each object we are iterating over. The if clause at line 6, attempts to check if the response code for the response of this request does not equal a `200 OK`. If this is not the case, the website is not running properly and an email should be sent to the user `Ted.Graves` to let him know that there is an issue with this particular website.
 
 Something interesting to note is that the Invoke-WebRequest cmdlet at line 5 is executed with the `-UseDefaultCredentials` flag. If we get a hold of these credentials, we might be able to use them elsewhere. In addition, it should be mentioned that line 6 would cause an error upon execution since the author forgot to write `$request` before the `.` character. However, this does not prevent the script from sending the authenticated web requests.
 
 Since we know that the for loop iterates over all DNS records in `AD:DC=intelligence.htb,CN=MicrosoftDNS,DC=DomainDnsZones,DC=intelligence,DC=htb` starting with the string "web", we could try to inject our own DNS record which starts with this string and points to our attacker machine. This way, we could leak the credentials of the request. A good tool for this is [dnstool](https://github.com/dirkjanm/krbrelayx/blob/master/dnstool.py) which was developed by [Dirk-jan Mollema](https://twitter.com/_dirkjan).
 
-We run this tool as demonstrated below. We use the `-u` and `-p` flags to provide the tool with the credentials of the `Tiffany.Molina` user which we compromised earlier. We use the `--action` flag to specify that we want to add a new DNS record and the `--record` flag to specify that the record name should be "web-evil" since this name starts with the string "web". Then, we specify that this record name should resolve to our IP address using the `--data` flag and that it is an A record using the `-type` flag.
+We run this tool as demonstrated below. We use the `-u` and `-p` flags to provide the tool with the credentials of the `Tiffany.Molina` user which we compromised earlier. We use the `--action` flag to specify that we want to add a new DNS record and the `--record` flag to specify that the record name should be "web-evil" since this name starts with the string "web". Then, we specify that this record name should resolve to our IP address using the `--data` flag and that it is an `A` record using the `-type` flag.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -463,7 +463,7 @@ dnstool.py                                                 100%[================
 └─$ 
 {% endhighlight %}
 
-There are a varaiety of [DNS record types](https://en.wikipedia.org/wiki/List_of_DNS_record_types). The A record type is one of the most common and maps a domain name to an IPv4 address. The last argument is simply the server we are targetting. From the output of the command, we see that the injection of the new record is successful! This means that the `Tiffany.Molina` user has modification rights on this Active Directory object and that we should be able to trick the `downDetector.ps1` script into sending us authenticated web requests.
+There is a variety of [DNS record types](https://en.wikipedia.org/wiki/List_of_DNS_record_types). The `A` record type is one of the most common and maps a domain name to an IPv4 address. The last argument is simply the server we are targeting. From the output of the command, we see that the injection of the new record is successful! This means that the `Tiffany.Molina` user has modification rights on this Active Directory object and that we should be able to trick the `downDetector.ps1` script into sending us authenticated web requests.
 
 The next step is to catch one of the authenticated web requests. We can do this using [responder](https://github.com/SpiderLabs/Responder) as shown below. We use the `-I` flag to specify a network interface to listen on. In the listing below, this is `tun0` since this is the network interface which is facing the hack the box lab environment.
 
@@ -575,7 +575,7 @@ Started: Sun Apr 10 05:49:43 2022
 Stopped: Sun Apr 10 05:50:44 2022
 {% endhighlight %}
 
-After around a minute, the hash is cracked and we obtain the password `Mr.Teddy`. Next, we will analyze this user's and the previous user's Active Directory permissions using [bloodhound](https://github.com/BloodHoundAD/BloodHound). However, before we can analyze any information, we must first extract it from the LDAP server on the target host. We can do this using [bloodhound-python](https://github.com/fox-it/BloodHound.py) as demonstrated below. From the output of the tool, we can see that it found 2 computers, 43 users and 55 groups in the domain. It also provides us with the names of the two computers it identified. All of the extracted information is stored in a set of JSON files which can be imported in bloodhound.
+After around a minute, the hash is cracked and we obtain the password `Mr.Teddy`. Next, we will analyze this user's and the previous user's Active Directory permissions using [bloodhound](https://github.com/BloodHoundAD/BloodHound). However, before we can analyze any information, we must first extract it from the LDAP server on the target host. We can do this using [bloodhound-python](https://github.com/fox-it/BloodHound.py) as demonstrated below. From the output of the tool, we can see that it found 2 computers, 43 users and 55 groups in the domain. It also provides us with the names of the two computers it identified. All of the extracted information is stored in a set of JSON files which can be imported into bloodhound.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -596,7 +596,7 @@ WARNING: Could not resolve: svc_int.intelligence.htb: The resolution lifetime ex
 INFO: Done in 00M 13S
                                                                                                                     
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ ls
+└─$ @@ls@@
 [...]
 @@@20220411130157_computers.json  20220411130157_domains.json  20220411130157_groups.json  20220411130157_users.json@@@
 [...]                                                                                                               
@@ -634,19 +634,19 @@ Once bloodhound starts, we provide it with the credentials for accessing the Neo
 
 ![bUpload](/assets/{{ imgDir }}/bUpload.png)
 
-Once we have logged in, we press the upload button, select the JSON files and press the `Open` button.
+Once we have logged in, we press the `Upload Data` button, select the JSON files and press the `Open` button.
 
 ![bSelect](/assets/{{ imgDir }}/bSelect.png)
 
 ![bSearch](/assets/{{ imgDir }}/bSearch.png)
 
-Next, we use the search bar ar the top-left corner to search for the `Ted.Graves` user we compromised. Once the `TED.GRAVES@INTELLIGENCE.HTB` suggestion pops up, we press enter to load this user. We then right click the icon of the user and select `Mark User as Owned` to let bloodhound know that we have already compromised this user. This adds a skull symbol to the icon. We do the same thing for the `Tiffany.Molina` user.
+Next, we use the search bar at the top-left corner to search for the `Ted.Graves` user we compromised. Once the `TED.GRAVES@INTELLIGENCE.HTB` suggestion pops up, we press enter to load this user. We then right click the icon of the user and select `Mark User as Owned` to let bloodhound know that we have already compromised this user. This adds a skull symbol to the icon. We do the same thing for the `Tiffany.Molina` user.
 
 ![bOwned1](/assets/{{ imgDir }}/bOwned.png)
 
 ![bOwned2](/assets/{{ imgDir }}/bOwned2.png)
 
-Once we have marked both of our compromised users as owned, we navigate to the `Analysis` tab and press `Shortest Path from Owned Principals`. We then select the domain `INTELLIGENCE.HTB` and `TED.GRAVES@INTELLIGENCE.HTB` in the two resulting popups.
+Once we have marked both of our compromised users as owned, we navigate to the `Analysis` tab and press `Shortest Path from Owned Principals`. We then select the domain `INTELLIGENCE.HTB` and `TED.GRAVES@INTELLIGENCE.HTB` in the two resulting pop-ups.
 
 ![bShortest](/assets/{{ imgDir }}/bShortest.png)
 
@@ -660,7 +660,7 @@ Once we have marked both of our compromised users as owned, we navigate to the `
 
 The graph also shows that the `SVC_INT` account has the `AllowedToDelegate` permission on the domain controller! This means that `SVC_INT` is allowed to perform [Kerberos Constrained Delegation](https://docs.microsoft.com/en-us/windows-server/security/kerberos/kerberos-constrained-delegation-overview) on the target domain controller. Consequently, the `SVC_INT` account can impersonate any user when accessing any service running on the domain controller. As such, we could abuse this permission to compromise the `administrator` account which has administrative access on the domain controller.
 
-To read the password of the `SVC_INT` account, we can use the Python script [gMSADumper.py](https://github.com/micahvandeusen/gMSADumper) created by [Micah Van Deusen](https://twitter.com/micahvandeusen), as performed below. We use the `-u` and `-p` flags to authenticate as `Ted.Graves`. In addition, we use the `-l` flag to specify the LDAP server we want to communicate with and `-d` to specify the domain we are targetting. As can be seen in the output of the command, this discloses the password hash of the `SVC_INT` account!
+To read the password of the `SVC_INT` account, we can use the Python script [gMSADumper.py](https://github.com/micahvandeusen/gMSADumper) created by [Micah Van Deusen](https://twitter.com/micahvandeusen), as performed below. We use the `-u` and `-p` flags to authenticate as `Ted.Graves`. In addition, we use the `-l` flag to specify the LDAP server we want to communicate with and `-d` to specify the domain we are targeting. As can be seen in the output of the command, this reveals the password hash of the `SVC_INT` account!
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -722,13 +722,13 @@ Impacket v0.9.24 - Copyright 2021 SecureAuth Corporation
 [*] @@@Saving ticket in administrator.ccache@@@
 
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ @@ls -lh@@
+└─$ @@ls@@
 [...]
--rw-r--r-- 1 kali kali 1.6K Apr 23 21:47 @@@administrator.ccache@@@
+@@@administrator.ccache@@@
 [...]
 {% endhighlight %}
 
-This time, we do not get an error and a TGT is generated. The script automatically write this TGT to a file named "administrator.ccache". The next step is to use this TGT to log in to the domain controller as the `administrator` user using [wmiexec](https://github.com/SecureAuthCorp/impacket/blob/master/examples/wmiexec.py).
+This time, we do not get an error and a TGT is generated. The script automatically writes this TGT to a file named "administrator.ccache". The next step is to use this TGT to log in to the domain controller as the `administrator` user using [wmiexec](https://github.com/SecureAuthCorp/impacket/blob/master/examples/wmiexec.py).
 
 
 {% highlight none linenos %}
@@ -748,6 +748,6 @@ C:\>@@whoami@@
 C:\>
 {% endhighlight %}
 
-To ensure that we use the generated TGT for Kerberos authentication, we create an environment variable named "KRB5CCNAME" which points to the `administrator.ccache` file. Then, we run `wmiexec` with the `-k` and `-no-pass` flags, to instruct it to authenticate using Kerberos. We also provide it with the target user and host as the last argument `administrator@dc.intelligence.htb`. Upon execution of the `wmiexec` command, we obtain administrative access to the domain controller, meaning that we have successfully compromised the entire domain!
+To ensure that we use the generated TGT for Kerberos authentication, we create an environment variable named "KRB5CCNAME" which points to the `administrator.ccache` file. Then, we run `wmiexec` with the `-k` and `-no-pass` flags, to instruct it to authenticate using Kerberos. We also provide it with the target user and host as the last argument. Upon execution of the `wmiexec` command, we obtain administrative access to the domain controller, meaning that we have successfully compromised the entire domain!
 
 
