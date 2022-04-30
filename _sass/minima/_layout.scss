@@ -310,3 +310,12 @@
 .tags-list {
   margin-bottom: 10px;
 }
+
+/**
+ * Enable line breaks for single line code blocks
+ */
+p {
+  code {
+    line-break: anywhere;
+  }
+}
