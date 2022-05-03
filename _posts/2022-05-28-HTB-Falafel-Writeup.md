@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Falafel - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2022-05-28 07:00:00 +0200
 tags: ["Hack The Box","OSWE"]
 ---
-{% assign imgDir="HTB-Falafel-Writeup" %}
+{% assign imgDir="2022-05-28-HTB-Falafel-Writeup" %}
 
 # Introduction
 The hack the box machine "Falafel" is a hard machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of PHP type juggling vulnerabilities, insecure file uploads, capabilities of different Linux groups and framebuffers.
