@@ -7,11 +7,13 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Bart-Writeup" %}
 
 # Introduction
-The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of wordlist generation. 
+The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of wordlist generation, source code analysis, log injection vulnerabilties and extraction of autologon credentials. In addition, it requires knowledge concerning how to dynamically set parameter values in brute force attacks, which is something that can be performed using Burp Suite macros.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
-By enumerating the target, it is possible to discover
+By enumerating the target, it is possible to discover a web application at [http://forum.bart.htb](http://forum.bart.htb) and a login prompt at [http://bart.htb/monitor/](http://bart.htb/monitor/). The former can be used to identify potential usernames and generate a list of potential passwords. These potential usernames and passwords can then be used in a brute force attack against the login prompt to gain access to a server monitoring software. This software then reveals an internal chat application which is behind another login prompt. The chat application is open source and it is possible to find the source code for the account registration functionality. 
+
+A source code analysis reveals that anyone can register an account. As such, a registration request can be reconstructed and used to bypass the second login prompt. Once authenticated, it can be discovered that the application is logging the `User-Agent` field of certain requests, in a dangerous way. This logging funcationlity can be abused by sending a request with a PHP web shell in the `User-Agent` header and ensuring that it is uploaded to a file with a `.php` extension. Using the web shell, an interactive shell can then be obtained as the `nt authority\iusr` account. Thereafter, it can be discovered that the target has autologon credentials for the `Administrator` user. The password of this user can be obtained from the Windows registry and then be used to compromise the account!
 
 # Exploitation
 We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.81`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that there is a web server on port 80.
@@ -64,7 +66,7 @@ Scrolling down, we find the names of four employees.
 ![team2](/assets/{{ imgDir }}/team2.png)
 
 ![team3](/assets/{{ imgDir }}/team3.png)
-We can also find an additional employee by inspecting the source code. This employee was excluded from the presentation of team members due to design limitations. In total, we have discovered five employees. These are `Samantha Brown`, `Daniel Simmons`, `Robert Hilton`, `Harvey Potter` and `Jane Doe`. Next, we can try to guess directories and file names with [ffuf]() for the domains `bart.htb` and `forum.bart.htb`. We use the `-u` flag to specify the target URL and the `-w` to specify a wordlist we want to use. We also include the `-ic` to include any comments in the wordlist.
+We can also find an additional employee by inspecting the source code. This employee was excluded from the presentation of team members due to design limitations. In total, we have discovered five employees. These are `Samantha Brown`, `Daniel Simmons`, `Robert Hilton`, `Harvey Potter` and `Jane Doe`. Next, we can try to guess directories and file names with [ffuf](https://github.com/ffuf/ffuf) for the domains `bart.htb` and `forum.bart.htb`. We use the `-u` flag to specify the target URL and the `-w` to specify a wordlist we want to use. We also include the `-ic` to include any comments in the wordlist.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -173,7 +175,7 @@ jane.doe
 └─$
 {% endhighlight %}
 
-Next, we can generate a wordlist of potential passwords using [cewl]() which is a tool for generating a wordlist based on a website. We use the `-w` flag to specify an output file and the `--lowercase` flag to instruct `cewl` that we want a lowercase wordlist.  This results in a wordlist containing 231 potential lowercase password. We can execute `cat wordlist | sed 's/.*/\u&/' | tee -a wordlist` to double the number of passwords by creating a copy of each potential password where the first character has been swapped to the corresponding uppercase character. For example, the password `secret` would become `Secret`. At this point, we have 462 potential passwords. We could try to perform a brute force attack using Burp suite's `Intruder` tool with the list of potential usernames and passwords.
+Next, we can generate a wordlist of potential passwords using [cewl](https://github.com/digininja/CeWL) which is a tool for generating wordlists based on websites. We use the `-w` flag to specify an output file and the `--lowercase` flag to instruct `cewl` that we want a lowercase wordlist.  This results in a wordlist containing 231 potential lowercase password. We can execute `cat wordlist | sed 's/.*/\u&/' | tee -a wordlist` to double the number of passwords by creating a copy of each potential password where the first character has been swapped to the corresponding uppercase character. For example, the password `secret` would become `Secret`. At this point, we have 462 potential passwords. We could try to perform a brute force attack using Burp suite's `Intruder` tool with the list of potential usernames and passwords.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -197,16 +199,13 @@ CeWL 5.5.2 (Grouping) Robin Wood (robin@digi.ninja) (https://digi.ninja/)
 
 ![loginx](/assets/{{ imgDir }}/loginx.png)
 
-To see how a login request looks like, we can attempt to login with a random username and password using the built-in Burp Suite browser. The request, shown above, is a POST request which contains the parameters `csrf`, `username`, `password` and `login`. The first parameter is a CSRF token which is a string containing random characters. CSRF tokens are normally submitted together with forms to ensure that cross-domain requests require read-access to the domain they are targetting. This prevents one domain's JavaScript from doing things on another domain without user consent.
+To see how a login request looks like, we can attempt to login with a random username and password using the built-in Burp Suite browser. The request, shown below, is a POST request which contains the parameters `csrf`, `user_name`, `user_password` and `action`. The first parameter is a CSRF token which is a string containing random characters. CSRF tokens are normally submitted together with forms to ensure that cross-domain requests require read-access to the domain they are targetting. This prevents one domain's JavaScript from doing things on another domain without user consent.
 
 ![loginx2](/assets/{{ imgDir }}/loginx2.png)
 
 ![loginForm](/assets/{{ imgDir }}/loginForm.png)
 
-If we inspect the source code of the login page, we can see that the CSRF token is included in the login form. This token changes every time the login form is reloaded and should thus be different with every log in attempt. This means that the login form should be loaded before each authentication attempt in a brute force attack, since the login form contains a valid value for the CSRF token. Fortunately, Burp Suite supports macros which makes it possible to dynamically set the value of the `CSRF` variable. We can find the macro configurations by clicking the `Project options` tab and pressing the `Sessions` subtab.
-
-TODO: Background on macros?
-TODO: CSRF token bakground?
+If we inspect the source code of the login page, we can see that the CSRF token is included in the login form. This token changes every time the login form is loaded and should thus be different with every log in attempt. This means that the login form should be loaded before each authentication attempt in a brute force attack, since the login form contains a valid value for the CSRF token. Fortunately, Burp Suite supports macros which makes it possible to dynamically set the value of the `CSRF` variable. We can find the macro configurations by clicking the `Project options` tab and pressing the `Sessions` subtab.
 
 ![macro](/assets/{{ imgDir }}/macro.png)
 
