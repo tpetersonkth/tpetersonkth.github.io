@@ -1,10 +1,10 @@
 ---
 layout: post
 title:  "Hack The Box - Bart - Writeup"
-date:   2000-01-01 07:00:00 +0200
+date:   2022-06-11 07:00:00 +0200
 tags: ["Hack The Box","OSCP"]
 ---
-{% assign imgDir="HTB-Bart-Writeup" %}
+{% assign imgDir="2022-06-11-HTB-Bart-Writeup" %}
 
 # Introduction
 The hack the box machine "Bart" is a medium machine which is included in [TJnull's OSCP Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=1839402159). Exploiting this machine requires knowledge in the areas of wordlist generation, source code analysis, log injection vulnerabilities and extraction of autologon credentials. In addition, it requires knowledge concerning how to dynamically set parameter values in brute force attacks, which is something that can be performed using Burp Suite macros.
