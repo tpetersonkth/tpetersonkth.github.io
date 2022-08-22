@@ -17,9 +17,13 @@ bundle exec jekyll serve
 -Word count estimate-
 find ./ -type f -name "*" -exec wc -w {} +
 
+-Copyright notice-
+find . -type f -iname '*.mp4' -exec exiftool -copyright='&copy; 2021-2022 Thomas Pierre Elis Peterson. All rights reserved.' -E {} +
+
 -Publishing a post checklist-
 Check for any "TODO" in the post
 Change the date in the md file
 Rename the md file and the directory to include date
 Change the image directory in the md file
 Ensure that tags are appropriate
+
