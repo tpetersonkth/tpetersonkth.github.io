@@ -11,27 +11,27 @@ permalink: /tags
 </header>
 
 <div class="filter-box-div">
-<input id="filter-box" class="filter-box" placeholder="Filter...">
+    <input id="filter-box" class="filter-box" placeholder="Filter...">
 </div>
 
 <div id="tags-list" class="tags-list">
-{% for tag in sorted_tags %}
-<a class="post-tag" href="/tags#{{tag[0] | escape}}">{{tag[0] | escape}}</a>
-{% endfor %}
+    {% for tag in sorted_tags %}
+        <a class="post-tag" href="/tags#{{tag[0] | escape}}">{{tag[0] | escape}}</a>
+    {% endfor %}
 </div>
 
 <div id="tag-headers">
-{% for tag in sorted_tags %}
-  <div>
-    <h3>{{ tag[0] }}</h3>
-    <ul>
-      {% assign sorted_posts = tag[1] | sort:'title' %}
-      {% for post in sorted_posts %}
-        <li><a href="{{ post.url }}">{{ post.title }}</a></li>
-      {% endfor %}
-    </ul>
-  </div>
-{% endfor %}
+  {% for tag in sorted_tags %}
+    <div>
+      <h3>{{ tag[0] }}<a name="{{ tag[0] }}"/></h3>
+      <ul>
+        {% assign sorted_posts = tag[1] | sort:'title' %}
+        {% for post in sorted_posts %}
+          <li><a href="{{ post.url }}">{{ post.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
 </div>
 
 <script>
