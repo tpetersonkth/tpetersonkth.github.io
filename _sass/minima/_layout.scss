@@ -216,7 +216,7 @@
   line-height: 26px;
   padding: 0 10px 0 10px;
   position: relative;
-  margin: 10px 10px 1px 0;
+  margin: 5px 5px 0px 0;
   text-decoration: none;
   -webkit-transition: color 0.2s;
 }
@@ -309,6 +309,21 @@
 
 .tags-list {
   margin-bottom: 10px;
+}
+
+.filter-box-div {
+  margin-right: 15px;
+}
+
+.filter-box {
+	height: 26px;
+	padding-left: 10px; 
+	width: 100%; 
+	border-radius: 10px; 
+	font-family: monospace;
+
+	margin-right: 10px; 
+	margin-bottom: 5px; 
 }
 
 /**
