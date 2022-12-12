@@ -10,12 +10,24 @@ layout: default
         {{ page.date | date: date_format }}
         
       </time>
-      <!--•-->      
-      {% assign sorted_tags = page.tags | sort %}
-      {%- for tag in sorted_tags -%}
-      <a class="post-tag" href="/tags#{{tag | escape}}">{{tag | escape}}</a>
+
+      {% comment %} -- Sort tags. Ensure that they are unique, If maintags exists: list only these. Otherwise, list all known tags  -- {% endcomment %}
+
+      {% assign sorted_tags = page.tags | sort | uniq %}
+       {%- for tag in sorted_tags -%}
+         {% if page.mainTags %}
+          {% assign display = "none" %}
+            {% if page.mainTags contains tag %}
+              {% assign display = "" %}
+             {% endif %}
+
+        {% else %}
+          {% assign display = "" %}
+        {% endif %}
+
+        <a class="post-tag" href="/tags#{{ tag }}" style="display: {{display | escape}}">{{ tag }}</a>
       {%- endfor -%}
-      </p>
+    </p>
 
   </header>
 

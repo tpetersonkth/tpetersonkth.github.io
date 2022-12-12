@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Popcorn - Writeup"
 date:   2021-12-11 07:00:00 +0200
-tags: ["Hack The Box","OSWE"]
+#mainTags: ["Hack The Box","OSWE"]
+tags: ["CVE-2010-0832","Directory Brute Force","Dirty Cow","File Upload","Filter Bypass","Hack The Box","Hack The Box - Linux","Hack The Box - Medium","Kernel Exploitation","Linux PAM","OSWE","PHP","Python2","Python3","Web Shell"]
 ---
 {% assign imgDir="2021-12-11-HTB-Popcorn-Writeup" %}
 

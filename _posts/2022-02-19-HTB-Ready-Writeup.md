@@ -2,7 +2,9 @@
 layout: post
 title:  "Hack The Box - Ready - Writeup"
 date:   2022-02-19 07:00:00 +0200
-tags: ["Hack The Box","OSCP"]
+#mainTags: ["Hack The Box","OSCP"]
+#tags: ["Hack The Box","OSCP"]
+tags: ["CVE-2018-19571","CVE-2018-19585","Docker","Exploit-DB","GitLab","Hack The Box","Hack The Box - Linux","Hack The Box - Medium","OSCP","Password Reuse","Python3"]
 ---
 {% assign imgDir="2022-02-19-HTB-Ready-Writeup" %}
 

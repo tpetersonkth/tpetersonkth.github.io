@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Love - Writeup"
 date:   2022-04-30 07:00:00 +0200
-tags: ["Hack The Box","OSCP"]
+#mainTags: ["Hack The Box","OSCP"]
+tags: ["AlwaysInstallElevated","Exploit-DB","Hack The Box","Hack The Box - Easy","Hack The Box - Windows","Msfvenom","OSCP","PowerShell","Python3","SSRF","Windows Registry"]
 ---
 {% assign imgDir="2022-04-30-HTB-Love-Writeup" %}
 

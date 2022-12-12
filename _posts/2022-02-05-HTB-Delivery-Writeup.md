@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Delivery - Writeup"
 date:   2022-02-05 07:00:00 +0200
-tags: ["Hack The Box","OSCP"]
+#mainTags: ["Hack The Box","OSCP"]
+tags: ["Business Logic Vulnerability","Cracking","Hack The Box","Hack The Box - Easy","Hack The Box - Linux","Hashcat","OSCP","Ticket Trick"]
 ---
 {% assign imgDir="2022-02-05-HTB-Delivery-Writeup" %}
 

@@ -2,11 +2,10 @@
 layout: post
 title:  "Defcon 30 - Red Team Village Websploit CTF - Writeup"
 date:   2022-08-21 07:00:00 +0200
-tags: ["Defcon","OSWE","Websploit","Log4J"]
+#mainTags: ["Defcon","OSWE","Websploit","Log4J"]
+tags: ["CTF","Defcon","Exploit-DB","Git","Gitea","Java","Metasploit","OSWE","Log4J","Log4shell","Python3","Apache Solr","Websploit"]
 ---
 {% assign imgDir="2022-08-21-Defcon-30-Red-Team-Village-Websploit-CTF-Writeup" %}
-
-<!-- Log4Shell instead of Log4j? -->
 
 # Introduction
 This year, I had the opportunity to attend Blackhat and Defcon for the first time. During one of the days at Defcon, I spent some time in the Red Team Village where I met [Omar](https://www.linkedin.com/in/santosomar/). Omar introduced me to the [Websploit CTF](https://websploit.org/defcon/) where the challenge was to obtain RCE on two machines named DC30_01 and DC30_02. This post is a writeup for these two machines. The first could be compromised by abusing Git hooks and the second through Log4j.
@@ -258,7 +257,7 @@ From the dashboard, we find that the web server is running version 8.11.0 of Apa
 
 ![CVE](/assets/{{ imgDir }}/CVE.png)
 
-To validate that the target is vulnerable to Log4j and to discover the location of the vulnerability, we can use the `log4shell_scanner` module in Metasploit. Log4shell is the name of the technique used to abuse Log4j vulnerabilities to obtain remote code execution.
+To validate that the target is vulnerable to Log4j and to discover the location of the vulnerability, we can use the `log4shell_scanner` module in Metasploit. Log4Shell is the name of the technique used to abuse Log4j vulnerabilities to obtain remote code execution.
 
 {% highlight none linenos %}
 ┌──(kali㉿kali)-[/tmp/x]
