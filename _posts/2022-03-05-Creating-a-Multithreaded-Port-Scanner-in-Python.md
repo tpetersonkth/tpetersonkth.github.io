@@ -2,13 +2,14 @@
 layout: post
 title:  "Creating a Multithreaded Port Scanner in Python"
 date:   2022-03-05 07:00:00 +0200
-tags: ["OSCP","Pentesting Tips & Tricks"]
+#mainTags: ["OSCP","Pentesting Tips & Tricks"]
+tags: ["Demo Available","Multithreading","OSCP","Pentesting Tips & Tricks","Port Scanner","Python2","Python3","Socket Programming","Tool"]
 ---
 {% assign assetDir="2022-03-05-Creating-a-Multithreaded-Port-Scanner-in-Python" %}
 
 # Introduction
 
-When performing pentests, read team engagement or hacking around in a lab environment such as the OSCP labs, one issue which might occur is that an attacker might need to leverage a compromised host to compromise another host. For example, if an attacker has compromised a host, this host might have two network interfaces. Atleast one of these interfaces must be reachable by the attacker since the host was compromised. However, the other interface could lead to an isolated subnet which could not normally be reached by the attacker. 
+When performing pentests, red team engagements or hacking around in a lab environment such as the OSCP labs, one issue which might occur is that an attacker might need to leverage a compromised host to compromise another host. For example, if an attacker has compromised a host, this host might have two network interfaces. Atleast one of these interfaces must be reachable by the attacker since the host was compromised. However, the other interface could lead to an isolated subnet which could not normally be reached by the attacker. 
 
 By pivoting through the compromised host, the attacker could attempt to compromise arbitrary hosts in the isolated subnet. However, performing port scans through port forwarding or pivoting techniques can sometimes be a quite slow process. As such, it is common for attackers to leverage tools on the compromised host, such as netcat, to perform port scans directly from the compromised host. Sometimes, however, tools like netcat are not available and the attacker thus has to use other available tools to perform port scans or install his/her own tools on the compromised machine. As the latter alternative could increase the probability of an attacker being discovered, the former might be a better option.
 

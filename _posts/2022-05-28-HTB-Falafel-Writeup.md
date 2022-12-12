@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Falafel - Writeup"
 date:   2022-05-28 07:00:00 +0200
-tags: ["Hack The Box","OSWE"]
+#mainTags: ["Hack The Box","OSWE"]
+tags: ["Burp Suite","File Upload","Filter Evasion","FrameBuffer","Hack The Box","Hack The Box - Hard","Hack The Box - Linux","Magic Hash","OSWE","PHP","Source Code Analysis","Type Juggling","Web Shell"]
 ---
 {% assign imgDir="2022-05-28-HTB-Falafel-Writeup" %}
 

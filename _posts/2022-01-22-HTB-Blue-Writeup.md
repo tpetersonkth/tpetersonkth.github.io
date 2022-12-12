@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Blue - Writeup"
 date:   2022-01-22 07:00:00 +0200
-tags: ["Hack The Box","OSCP"]
+#mainTags: ["Hack The Box","OSCP"]
+tags: ["CVE-2017-0144","EternalBlue","Exploit-DB","Hack The Box","Hack The Box - Easy","Hack The Box - Windows","Msfvenom","OSCP","Python2","SMB"]
 ---
 {% assign imgDir="2022-01-22-HTB-Blue-Writeup" %}
 

@@ -2,7 +2,8 @@
 layout: post
 title:  "OSWE Review 2022"
 date:   2022-04-16 07:00:00 +0200
-tags: ["OSWE"]
+#mainTags: ["OSWE"]
+tags: ["C#","Certification Review","Hack The Box","Java","NodeJS","OSWE","PHP","Regular Expression"]
 ---
 {% assign imgDir="2022-04-16-OSWE-Review" %}
 

@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Bart - Writeup"
 date:   2022-06-11 07:00:00 +0200
-tags: ["Hack The Box","OSCP"]
+#mainTags: ["Hack The Box","OSCP"]
+tags: ["Burp Suite","Directory Brute Force","Hack The Box","Hack The Box - Medium","Hack The Box - Windows","Log Injection","OSCP","PHP","PowerShell","Source Code Analysis","Wordlist Generation","Web Shell","Windows Registry"]
 ---
 {% assign imgDir="2022-06-11-HTB-Bart-Writeup" %}
 
@@ -147,7 +148,7 @@ ________________________________________________
 :: Progress: [81630/81630] :: Job [1/1] :: 29 req/sec :: Duration: [1:07:37] :: Errors: 148 ::
 {% endhighlight %}
 
-The results of the directory bruteforce suggests that there are two directories. The first is `/forum` which redirects to `/forum/`. Visiting the `/forum/` page in a browser reveals that this web page is identical to `forum.bart.htb`. The second one is `/monitor` which redirects us to `/monitor/`. Visiting the `/monitor/` page reveals a login prompt, as shown below. Fuzzing the `forum.bart.htb` domain with the same wordlist did not result in anything except for the `/` page.
+The results of the directory brute force suggests that there are two directories. The first is `/forum` which redirects to `/forum/`. Visiting the `/forum/` page in a browser reveals that this web page is identical to `forum.bart.htb`. The second one is `/monitor` which redirects us to `/monitor/`. Visiting the `/monitor/` page reveals a login prompt, as shown below. Fuzzing the `forum.bart.htb` domain with the same wordlist did not result in anything except for the `/` page.
 
 ![monitor](/assets/{{ imgDir }}/monitor.png)
 

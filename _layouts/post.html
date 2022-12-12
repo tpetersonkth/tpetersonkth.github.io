@@ -25,7 +25,7 @@ layout: default
           {% assign display = "" %}
         {% endif %}
 
-        <a class="post-tag" href="/tags#{{tag | escape}}" style="display: {{display | escape}}">{{tag | escape}}</a>
+        <a class="post-tag" href="/tags#{{ tag }}" style="display: {{display | escape}}">{{ tag }}</a>
       {%- endfor -%}
     </p>
 

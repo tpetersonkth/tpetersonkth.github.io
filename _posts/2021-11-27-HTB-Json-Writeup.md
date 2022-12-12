@@ -2,7 +2,8 @@
 layout: post
 title:  "Hack The Box - Json - Writeup"
 date:   2021-11-27 07:00:00 +0200
-tags: ["Hack The Box","OSWE"]
+#mainTags: ["Hack The Box","OSWE"]
+tags: [".NET","Burp Suite","C#","Deobfuscation","Deserialization","Impacket","JavaScript","Json.Net","Juicy Potato","Hack The Box","Hack The Box - Medium","Hack The Box - Windows","OSWE","SeImpersonatePrivilege","SMB","Wireshark"]
 ---
 {% assign imgDir="2021-11-27-HTB-Json-Writeup" %}
 
